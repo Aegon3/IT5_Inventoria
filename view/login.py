@@ -208,21 +208,7 @@ class LoginWindow(QDialog):
         card_layout.addSpacing(10)
 
         # Info box - now with proper text display
-        info = QLabel("💡 Default credentials: admin / admin")
-        info.setWordWrap(True)
-        info.setStyleSheet("""
-            QLabel {
-                background: #F8F9FA;
-                border-left: 4px solid #6C757D;
-                padding: 5px 5px;
-                border-radius: 4px;
-                color: #495057;
-                font-size: 12px;
-            }
-        """)
-        card_layout.addWidget(info)
 
-        card_layout.addSpacing(5)
 
         # Buttons
         btn_layout = QHBoxLayout()
