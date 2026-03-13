@@ -343,13 +343,13 @@ class DatabaseHandler:
             return []
 
     # ------------------- NEW ORDER METHODS -------------------
-    def create_order(self, supplier_id, order_number, created_by, notes=""):
+    def create_order(self, supplier_id, order_number, created_by, notes="", expected_delivery=None):
         try:
             query = """
-                INSERT INTO orders (supplier_id, order_number, created_by, notes)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO orders (supplier_id, order_number, created_by, notes, expected_delivery)
+                VALUES (%s, %s, %s, %s, %s)
             """
-            self.cursor.execute(query, (supplier_id, order_number, created_by, notes))
+            self.cursor.execute(query, (supplier_id, order_number, created_by, notes, expected_delivery))
             self.conn.commit()
             return self.cursor.lastrowid
         except Error as e:

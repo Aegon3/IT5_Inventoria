@@ -245,7 +245,8 @@ class OrderDialog(QDialog):
 
         self.expected_date_input = QDateEdit()
         self.expected_date_input.setDate(QDate.currentDate().addDays(7))
-        self.expected_date_input.setCalendarPopup(True)
+        self.expected_date_input.setReadOnly(True)
+        self.expected_date_input.setCalendarPopup(False)
 
         self.notes_input = QTextEdit()
         self.notes_input.setMaximumHeight(80)
@@ -793,7 +794,7 @@ class OrdersDialog(QDialog):
         filter_layout.addWidget(QLabel("Status Filter:"))
 
         self.status_filter = QComboBox()
-        self.status_filter.addItems(["All", "draft", "pending", "ordered", "delivered", "cancelled"])
+        self.status_filter.addItems(["All", "ordered", "delivered", "cancelled"])
         self.status_filter.currentTextChanged.connect(self.load_orders)
         filter_layout.addWidget(self.status_filter)
 
@@ -896,7 +897,7 @@ class OrdersDialog(QDialog):
                 self.orders_table.setItem(row, 3, QTableWidgetItem(expected_date))
 
                 status_combo = QComboBox()
-                status_combo.addItems(['draft', 'pending', 'ordered', 'delivered', 'cancelled'])
+                status_combo.addItems(['ordered', 'delivered', 'cancelled'])
                 status_combo.setCurrentText(order['status'])
                 status_combo.setStyleSheet(f"color: {status_color}; font-weight: bold;")
 
@@ -949,7 +950,7 @@ class OrdersDialog(QDialog):
                 return
 
             status_color = {
-                'draft': '#95A5A6', 'pending': '#F39C12', 'ordered': '#3498DB',
+                'ordered': '#3498DB',
                 'delivered': '#27AE60', 'cancelled': '#E74C3C'
             }.get(new_status.lower(), '#95A5A6')
 
@@ -1003,8 +1004,6 @@ class OrdersDialog(QDialog):
             th {{ background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; }}
             td {{ padding: 8px; border: 1px solid #ddd; }}
             .total-row {{ background-color: #e8f4fd; font-weight: bold; }}
-            .status-draft {{ color: #95A5A6; }}
-            .status-pending {{ color: #F39C12; }}
             .status-ordered {{ color: #3498DB; }}
             .status-delivered {{ color: #27AE60; }}
             .status-cancelled {{ color: #E74C3C; }}

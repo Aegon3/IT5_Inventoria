@@ -10,24 +10,22 @@ from controller.kpi_controller import KPIController
 class InventoryController:
     """Main controller for inventory operations with database"""
 
-    def __init__(self, model, view, user_role="staff", username="User", db_config=None):
+    def __init__(self, model, view, user_role="staff", username="User"):
         self.model = model
         self.view = view
         self.user_role = user_role
         self.username = username
 
-        # Use provided db_config, fall back to defaults if not given
-        if db_config is None:
-            db_config = {
-                'host': 'localhost',
-                'database': 'inventoria_db',
-                'user': 'root',
-                'password': '',
-                'port': 3308
-            }
+        # FIX: Use hardcoded db_config (matches main.py)
+        db_config = {
+            'host': 'localhost',
+            'database': 'inventoria_db',
+            'user': 'root',
+            'password': '',
+            'port': 3308
+        }
         self.supplier_model = SupplierModel(db_config)
         self.kpi_controller = KPIController(model, view, db_config)
-        # Wire kpi_controller into the dashboard widget (admin only)
         if user_role == "admin":
             self.view.kpi_dashboard.set_kpi_controller(self.kpi_controller)
 
@@ -363,6 +361,8 @@ class InventoryController:
 
             order_number = order_data.get('order_number', f"ORD-{self.username}-{self.get_timestamp()}")
             notes = order_data.get('notes', '')
+            expected_delivery = order_data.get('expected_delivery', None)
+            expected_delivery = order_data.get('expected_delivery', None)
 
             # STAFF: Submit orders as stock requests for admin approval
             if self.user_role == "staff":
@@ -414,7 +414,8 @@ class InventoryController:
                     supplier_id,
                     order_number,
                     self.username,
-                    notes
+                    notes,
+                    expected_delivery
                 )
 
                 if order_id:

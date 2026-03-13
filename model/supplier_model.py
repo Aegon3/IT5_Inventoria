@@ -311,13 +311,13 @@ class SupplierModel:
 
     # ------------------- Orders -------------------
 
-    def create_order(self, supplier_id, order_number, created_by, notes=""):
+    def create_order(self, supplier_id, order_number, created_by, notes="", expected_delivery=None):
         """Create a new order"""
         if self.db is None:
             print("❌ Cannot create order: Database not connected")
             return None
 
-        return self.db.create_order(supplier_id, order_number, created_by, notes)
+        return self.db.create_order(supplier_id, order_number, created_by, notes, expected_delivery)
 
     def add_order_item(self, order_id, item_id, quantity, unit_price):
         """Add item to an order"""

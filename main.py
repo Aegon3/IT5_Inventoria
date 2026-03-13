@@ -93,7 +93,7 @@ def main():
             view.setWindowTitle(f"Inventoria - {logged_in_user} ({user_role.upper()})")
 
             print("🎮 Initializing controller...")
-            controller_instance = InventoryController(model, view, user_role, logged_in_user, db_config)
+            controller_instance = InventoryController(model, view, user_role, logged_in_user)
 
             print("📊 Loading sample data...")
             model.load_sample_data()
