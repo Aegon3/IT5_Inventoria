@@ -4,26 +4,32 @@ Inventory Management System - Controller (Database Version)
 
 from PyQt6.QtWidgets import QMessageBox
 from model.supplier_model import SupplierModel
+from controller.kpi_controller import KPIController
 
 
 class InventoryController:
     """Main controller for inventory operations with database"""
 
-    def __init__(self, model, view, user_role="staff", username="User"):
+    def __init__(self, model, view, user_role="staff", username="User", db_config=None):
         self.model = model
         self.view = view
         self.user_role = user_role
         self.username = username
 
-        # FIX: Use hardcoded db_config (matches main.py)
-        db_config = {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': '',
-            'port': 3308
-        }
+        # Use provided db_config, fall back to defaults if not given
+        if db_config is None:
+            db_config = {
+                'host': 'localhost',
+                'database': 'inventoria_db',
+                'user': 'root',
+                'password': '',
+                'port': 3308
+            }
         self.supplier_model = SupplierModel(db_config)
+        self.kpi_controller = KPIController(model, view, db_config)
+        # Wire kpi_controller into the dashboard widget (admin only)
+        if user_role == "admin":
+            self.view.kpi_dashboard.set_kpi_controller(self.kpi_controller)
 
         self.model.add_observer(self)
         self._connect_signals()
@@ -70,8 +76,7 @@ class InventoryController:
         self.view.populate_low_stock_table(items)
 
     def update_statistics(self):
-        stats = self.model.get_statistics()
-        self.view.display_statistics(stats)
+        self.kpi_controller.update()
 
     def update_suppliers(self):
         """Update suppliers table"""

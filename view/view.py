@@ -148,22 +148,26 @@ class InventoryView(QMainWindow):
         header = self._create_header()
         main_layout.addWidget(header)
 
-        tabs = QTabWidget()
-        tabs.addTab(self._create_inventory_tab(), "Inventory")
-        tabs.addTab(self._create_low_stock_tab(), "Low Stock Alerts")
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self._create_inventory_tab(), "Inventory")
+        self.tabs.addTab(self._create_low_stock_tab(), "Low Stock Alerts")
 
         # Add Statistics tab only for admin
         if self.user_role == "admin":
-            tabs.addTab(self._create_stats_tab(), "Statistics")
+            self.tabs.addTab(self._create_stats_tab(), "Statistics")
 
         # Add suppliers tab for all users
-        tabs.addTab(self._create_suppliers_tab(), "Suppliers")
+        self.tabs.addTab(self._create_suppliers_tab(), "Suppliers")
 
         # Add approvals tab only for admin
         if self.user_role == "admin":
-            tabs.addTab(self._create_approvals_tab(), "Activity Log")
+            self.tabs.addTab(self._create_approvals_tab(), "Activity Log")
 
-        main_layout.addWidget(tabs)
+        # Wire KPI dashboard to tabs (kpi_controller wired later by InventoryController)
+        if self.user_role == "admin":
+            self.kpi_dashboard.set_tabs(self.tabs)
+
+        main_layout.addWidget(self.tabs)
 
     # ---------------------------------------------------------
     # HEADER
