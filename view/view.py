@@ -954,7 +954,7 @@ class InventoryView(QMainWindow):
         current_qty = int(self.inventory_table.item(row, 2).text())
 
         try:
-            from model.supplier_dialogs import StockRequestDialog
+            from view.supplier_views import StockRequestDialog
             dlg = StockRequestDialog(self, item_name, current_qty)
             if dlg.exec():
                 quantity = dlg.get_quantity()
@@ -1002,7 +1002,7 @@ class InventoryView(QMainWindow):
     def _on_add_supplier_clicked(self):
         """Handle add supplier button click"""
         try:
-            from model.supplier_dialogs import SupplierDialog
+            from view.supplier_views import SupplierDialog
             dlg = SupplierDialog(self)
             if dlg.exec():
                 self.add_supplier_signal.emit(dlg.get_data())
@@ -1019,7 +1019,7 @@ class InventoryView(QMainWindow):
         try:
             supplier_id = int(self.suppliers_table.item(row, 7).text())
 
-            from model.supplier_dialogs import SupplierDialog
+            from view.supplier_views import SupplierDialog
 
             supplier_name = self.suppliers_table.item(row, 0).text()
             contact_person = self.suppliers_table.item(row, 1).text()
@@ -1063,7 +1063,7 @@ class InventoryView(QMainWindow):
     def _on_place_order_clicked(self):
         """Handle place order button click"""
         try:
-            from model.supplier_dialogs import OrderDialog
+            from view.supplier_views import OrderDialog
 
             dlg = OrderDialog(self, None, "Auto-detect Supplier", self.db_config, self.order_controller)
 
@@ -1079,7 +1079,7 @@ class InventoryView(QMainWindow):
     def _on_view_orders_clicked(self):
         """Handle view orders button click"""
         try:
-            from model.supplier_dialogs import OrdersDialog
+            from view.supplier_views import OrdersDialog
 
             dlg = OrdersDialog(self, self.db_config, self.user_role, self.order_controller)
             dlg.exec()

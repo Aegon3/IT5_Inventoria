@@ -1,5 +1,5 @@
 """
-Supplier Management System - Dialogs
+Supplier Management System - Views
 Dialog boxes for supplier and order management
 """
 
@@ -392,31 +392,15 @@ class OrderDialog(QDialog):
                 QMessageBox.warning(self, "Warning", "Item is already in the order!")
                 return
 
-        # Get supplier for this item
+        # Get supplier for this item — delegated to order_controller
         supplier_name = "No Supplier"
         supplier_id = None
 
         if self.auto_detect_mode:
-            try:
-                supplier_name_from_item = selected_item.get('supplier', '')
-
-                if supplier_name_from_item and supplier_name_from_item.strip():
-                    supplier_name = supplier_name_from_item.strip()
-                    supplier_id, found_supplier_name = self.order_controller.find_or_create_supplier(supplier_name)
-
-                    if supplier_id and found_supplier_name:
-                        supplier_name = found_supplier_name
-                        print(f"✅ Found/created supplier: {supplier_name} (ID: {supplier_id})")
-                    else:
-                        supplier_name = "No Supplier"
-                        print(f"❌ Could not find or create supplier for: {supplier_name_from_item}")
-                else:
-                    print(f"⚠️ Item '{selected_item['name']}' has no supplier specified")
-                    supplier_name = "No Supplier"
-
-            except Exception as e:
-                print(f"❌ Error finding supplier: {e}")
-                supplier_name = "No Supplier"
+            supplier_name_from_item = selected_item.get('supplier', '').strip()
+            if supplier_name_from_item:
+                supplier_id, found_name = self.order_controller.find_or_create_supplier(supplier_name_from_item)
+                supplier_name = found_name if found_name else "No Supplier"
 
         # Store supplier info for this item
         self.order_suppliers[item_id] = {
@@ -591,30 +575,12 @@ class OrderDialog(QDialog):
 
         print(f"DEBUG: Order data prepared: supplier_id={self.supplier_id}, items={len(items)}")
 
-        # For auto-detect mode, try to find supplier
+        # For auto-detect mode, pick first valid supplier from tracked items
         if self.auto_detect_mode and self.supplier_id is None:
-            print("DEBUG: Auto-detect mode - trying to find supplier")
-
-            # Try to find a valid supplier from the items
-            valid_suppliers = []
-
-            for item in items:
-                item_id = item['id']
-                if item_id in self.order_suppliers:
-                    supplier_info = self.order_suppliers[item_id]
-                    if supplier_info['id'] is not None:
-                        valid_suppliers.append(supplier_info)
-
-            if valid_suppliers:
-                # Use the first valid supplier
-                supplier_info = valid_suppliers[0]
-                order_data['supplier_name'] = supplier_info['name']
-                order_data['supplier_id'] = supplier_info['id']
-                print(f"DEBUG: Auto-selected supplier: {supplier_info['name']} (ID: {supplier_info['id']})")
-            else:
-                # No valid suppliers found
-                print("DEBUG: No valid suppliers found")
-                # We'll still return the data, controller will handle the error
+            valid = [info for info in self.order_suppliers.values() if info['id'] is not None]
+            if valid:
+                order_data['supplier_name'] = valid[0]['name']
+                order_data['supplier_id']   = valid[0]['id']
 
         return order_data
 
@@ -739,11 +705,12 @@ class StockApprovalDialog(QDialog):
         self.setLayout(layout)
 
     def _on_approve(self):
-        """Validate and approve"""
-        if self.supplier_combo.currentText() == "Select Supplier":
-            QMessageBox.warning(self, "Validation Error", "Please select a supplier!")
+        """Validate via supplier_controller then accept"""
+        from controller.supplier_controller import SupplierController
+        ok, msg = SupplierController.validate_approval(self.supplier_combo.currentText())
+        if not ok:
+            QMessageBox.warning(self, "Validation Error", msg)
             return
-
         self.accept()
 
     def get_approved_quantity(self):
@@ -879,13 +846,8 @@ class OrdersDialog(QDialog):
                 self.orders_table.insertRow(row)
 
                 status = order['status'].upper()
-                status_color = {
-                    'DRAFT': '#95A5A6',
-                    'PENDING': '#F39C12',
-                    'ORDERED': '#3498DB',
-                    'DELIVERED': '#27AE60',
-                    'CANCELLED': '#E74C3C'
-                }.get(status, '#95A5A6')
+                from controller.supplier_controller import SupplierController
+                status_color = SupplierController.get_status_color(order['status'])
 
                 self.orders_table.setItem(row, 0, QTableWidgetItem(order['order_number']))
                 self.orders_table.setItem(row, 1, QTableWidgetItem(order.get('supplier_name', 'Unknown')))
@@ -949,10 +911,8 @@ class OrdersDialog(QDialog):
                 QMessageBox.critical(self, "Error", message)
                 return
 
-            status_color = {
-                'ordered': '#3498DB',
-                'delivered': '#27AE60', 'cancelled': '#E74C3C'
-            }.get(new_status.lower(), '#95A5A6')
+            from controller.supplier_controller import SupplierController
+            status_color = SupplierController.get_status_color(new_status)
 
             combo = self.orders_table.cellWidget(row_idx, 4)
             if combo:
@@ -989,96 +949,9 @@ class OrdersDialog(QDialog):
             QMessageBox.critical(self, "Error", error)
             return
 
-        # Build details HTML
-        details_html = f"""
-        <html>
-        <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; }}
-            h3 {{ color: #2C3E50; margin-top: 0; }}
-            h4 {{ color: #3498DB; margin-top: 15px; }}
-            .section {{ margin-bottom: 15px; }}
-            .label {{ font-weight: bold; color: #555; }}
-            .value {{ color: #000; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-            th {{ background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; }}
-            td {{ padding: 8px; border: 1px solid #ddd; }}
-            .total-row {{ background-color: #e8f4fd; font-weight: bold; }}
-            .status-ordered {{ color: #3498DB; }}
-            .status-delivered {{ color: #27AE60; }}
-            .status-cancelled {{ color: #E74C3C; }}
-        </style>
-        </head>
-        <body>
-        
-        <div class="section">
-            <h3>Order Details: {order['order_number']}</h3>
-            <p><span class="label">Supplier:</span> <span class="value">{supplier['name'] if supplier else 'Unknown'}</span></p>
-            <p><span class="label">Contact:</span> <span class="value">{supplier['contact_person'] if supplier else 'N/A'}</span></p>
-            <p><span class="label">Phone:</span> <span class="value">{supplier['phone'] if supplier else 'N/A'}</span></p>
-            <p><span class="label">Email:</span> <span class="value">{supplier['email'] if supplier else 'N/A'}</span></p>
-            <p><span class="label">Order Date:</span> <span class="value">{order['order_date'].strftime('%Y-%m-%d') if order['order_date'] else 'N/A'}</span></p>
-            <p><span class="label">Expected Delivery:</span> <span class="value">{order['expected_delivery'].strftime('%Y-%m-%d') if order['expected_delivery'] else 'N/A'}</span></p>
-            <p><span class="label">Status:</span> <span class="value status-{order['status']}"><b>{order['status'].upper()}</b></span></p>
-            <p><span class="label">Created By:</span> <span class="value">{order['created_by']}</span></p>
-            <p><span class="label">Notes:</span> <span class="value">{order['notes'] or 'None'}</span></p>
-        </div>
-        
-        <div class="section">
-            <h4>Order Items ({len(items)} items):</h4>
-        """
-
-        if items:
-            details_html += """
-            <table>
-                <tr>
-                    <th>Item Name</th>
-                    <th>Category</th>
-                    <th>Current Stock</th>
-                    <th>Order Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Total Price</th>
-                </tr>
-            """
-
-            total_amount = 0
-            for item in items:
-                item_total = item['quantity'] * float(item['unit_price'])
-                total_amount += item_total
-                details_html += f"""
-                <tr>
-                    <td>{item.get('item_name', 'Unknown')}</td>
-                    <td>{item.get('category', 'N/A')}</td>
-                    <td style='text-align: center;'>{item.get('current_stock', 0)}</td>
-                    <td style='text-align: center;'>{item['quantity']}</td>
-                    <td style='text-align: right;'>₱{float(item['unit_price']):.2f}</td>
-                    <td style='text-align: right;'>₱{item_total:.2f}</td>
-                </tr>
-                """
-
-            details_html += f"""
-                <tr class="total-row">
-                    <td colspan="5" style="text-align: right;">Grand Total:</td>
-                    <td style="text-align: right;">₱{total_amount:.2f}</td>
-                </tr>
-            </table>
-            """
-        else:
-            details_html += "<p>No items found in this order.</p>"
-
-        if supplier and supplier.get('address'):
-            details_html += f"""
-            <div class="section">
-                <h4>Supplier Address:</h4>
-                <p>{supplier['address']}</p>
-            </div>
-            """
-
-        details_html += """
-        </body>
-        </html>
-        """
-
+        # Build and display HTML — delegated to SupplierController
+        from controller.supplier_controller import SupplierController
+        details_html = SupplierController.build_order_details_html(order, items, supplier)
         self.details_text.setHtml(details_html)
         self.details_widget.setVisible(True)
 
