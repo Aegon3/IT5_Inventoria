@@ -56,76 +56,62 @@ class ReportGenerator:
             return False, "Failed to connect to database"
 
         try:
-            # Build SQL query based on parameters
-            where_parts = []
-            params = []
-
-            # 1. Handle category filter
+            # ── Category filter ──────────────────────────────────────────────
+            base_where = []
+            base_params = []
             if category != "All":
-                where_parts.append("category = %s")
-                params.append(category)
+                base_where.append("category = %s")
+                base_params.append(category)
 
-            # 2. Handle low stock filter
-            if report_type == "low_stock":
-                where_parts.append("quantity < min_stock")
-            elif include_low_stock and report_type == "full":
-                where_parts.append("quantity < min_stock")
-
-            # 3. Handle date filter (if specified)
+            # ── Date filter (filters items that appear in orders in range) ───
             date_filter_text = ""
             if start_date and end_date:
-                # Note: This filters based on when items were added/modified
-                # You may need to add a created_at or updated_at column to items table
-                # For now, we'll just note the date range in the report
-                date_filter_text = f" (Date Range: {start_date} to {end_date})"
+                date_filter_text = f"Date Range: {start_date} to {end_date}"
+                base_where.append(
+                    "id IN (SELECT DISTINCT oi.item_id FROM order_items oi "
+                    "JOIN orders o ON oi.order_id = o.id "
+                    "WHERE o.order_date BETWEEN %s AND %s)"
+                )
+                base_params.extend([start_date, end_date])
 
-            # Build the final query
+            # ── Fetch ALL matching items ──────────────────────────────────────
             query = "SELECT * FROM items"
-            if where_parts:
-                query += " WHERE " + " AND ".join(where_parts)
+            if base_where:
+                query += " WHERE " + " AND ".join(base_where)
+            query += " ORDER BY category, name"
+            self.cursor.execute(query, tuple(base_params))
+            all_items = self.cursor.fetchall()
 
-            print(f"DEBUG: Executing query: {query} with params: {params}")
-            self.cursor.execute(query, tuple(params))
-            items = self.cursor.fetchall()
-
-            print(f"DEBUG: Found {len(items)} items")
-            for item in items:
-                print(f"  - {item['name']} ({item['category']}): {item['quantity']}/{item['min_stock']}")
-
-            # If no items found with current filters, provide helpful message
-            if len(items) == 0:
-                if report_type == "low_stock" or include_low_stock:
-                    # Check if the category exists at all
-                    category_check = "SELECT COUNT(*) as count FROM items"
-                    category_params = []
-                    if category != "All":
-                        category_check += " WHERE category = %s"
-                        category_params.append(category)
-
-                    self.cursor.execute(category_check, tuple(category_params))
-                    category_result = self.cursor.fetchone()
-
-                    if category_result['count'] == 0 and category != "All":
-                        self.disconnect()
-                        return False, f"No items found in category '{category}'"
-                    else:
-                        self.disconnect()
-                        return False, f"No low stock items found. Try unchecking 'Include Low Stock Highlight'."
+            if len(all_items) == 0:
+                self.disconnect()
+                if date_filter_text:
+                    return False, "No items found in orders for the selected date range."
+                elif category != "All":
+                    return False, f"No items found in category '{category}'."
                 else:
-                    self.disconnect()
                     return False, "No items found matching the criteria."
 
-            # Get statistics for the filtered items
-            stats_query = "SELECT COUNT(*) as total_items, SUM(quantity) as total_quantity, SUM(quantity * unit_price) as total_value FROM items"
-            if where_parts:
-                stats_query += " WHERE " + " AND ".join(where_parts)
+            # ── For low_stock report type: filter to low stock only ──────────
+            # For full inventory: always show ALL items (include_low_stock only highlights)
+            if report_type == "low_stock":
+                items = [i for i in all_items if i['quantity'] < i['min_stock']]
+                if not items:
+                    self.disconnect()
+                    return False, "No low stock items found matching the criteria."
+            else:
+                items = all_items
 
-            self.cursor.execute(stats_query, tuple(params))
-            stats = self.cursor.fetchone()
-
-            # Count low stock items in the filtered results
-            low_stock_count = sum(1 for item in items if item['quantity'] < item['min_stock'])
-            stats['low_stock_count'] = low_stock_count
+            # ── Stats derived from `items` — always matches what is shown in table ──
+            total_items     = len(items)
+            total_quantity  = sum(i['quantity'] for i in items)
+            total_value     = sum(i['quantity'] * float(i['unit_price']) for i in items)
+            low_stock_count = sum(1 for i in items if i['quantity'] < i['min_stock'])
+            stats = {
+                'total_items':    total_items,
+                'total_quantity': total_quantity,
+                'total_value':    total_value,
+                'low_stock_count': low_stock_count,
+            }
 
             # Create PDF
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -394,7 +380,7 @@ class ReportGenerator:
             <b>Summary:</b><br/>
             • Total Categories: {len(categories)}<br/>
             • Total Items: {total_items}<br/>
-            • Total Value: PHP {total_value:,.2f}<br/>  # CHANGED TO "PHP"
+            • Total Value: PHP {total_value:,.2f}<br/>
             • Total Low Stock Items: {total_low_stock}<br/>
             """
             elements.append(Paragraph(summary_text, styles['Normal']))
@@ -486,8 +472,8 @@ class ReportDialog(QDialog):
         layout.addLayout(date_layout)
 
         # Low Stock option
-        self.include_low_stock_check = QCheckBox("✓ Include Low Stock Highlight")
-        self.include_low_stock_check.setChecked(False)
+        self.include_low_stock_check = QCheckBox("🔴 Highlight Low Stock Items")
+        self.include_low_stock_check.setChecked(True)
         layout.addWidget(self.include_low_stock_check)
 
         # Buttons
@@ -534,9 +520,10 @@ class ReportDialog(QDialog):
             self.category_combo.setEnabled(False)
         else:  # Full Inventory
             self.include_low_stock_check.setEnabled(True)
-            self.include_low_stock_check.setText("✓ Include Low Stock Highlight")
-            self.include_low_stock_check.setChecked(False)
+            self.include_low_stock_check.setText("🔴 Highlight Low Stock Items")
+            self.include_low_stock_check.setChecked(True)
             self.category_combo.setEnabled(True)
+            self.category_combo.setCurrentIndex(0)  # Reset to "All"
 
     def generate_report(self):
         report_type_text = self.report_type_combo.currentText()
