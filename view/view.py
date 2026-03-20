@@ -36,6 +36,7 @@ class InventoryView(QMainWindow):
     delete_supplier_signal = pyqtSignal(int)
     place_order_signal = pyqtSignal(dict)
     refresh_activity_log_signal = pyqtSignal()
+    damage_report_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, reason
 
     def __init__(self, user_role="staff", username="User", db_config=None, order_controller=None):
         super().__init__()
@@ -162,6 +163,11 @@ class InventoryView(QMainWindow):
         # Add approvals tab only for admin
         if self.user_role == "admin":
             self.tabs.addTab(self._create_approvals_tab(), "Activity Log")
+
+        # Add Damage Report tab for staff only
+        if self.user_role == "staff":
+            from view.damage_report_view import create_damage_report_tab
+            self.tabs.addTab(create_damage_report_tab(self), "Damage Report")
 
         # Wire KPI dashboard to tabs (kpi_controller wired later by InventoryController)
         if self.user_role == "admin":
@@ -503,7 +509,7 @@ class InventoryView(QMainWindow):
         layout.addWidget(refresh_btn)
 
         # ── Activity Log Section ────────────────────────────────
-        activity_label = QLabel("🕵️ Activity Log — Who Did What & When")
+        activity_label = QLabel("Activity Log — Who Did What & When")
         activity_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         activity_label.setStyleSheet("padding: 10px; color: #2980B9; margin-top: 10px;")
         layout.addWidget(activity_label)
@@ -1090,6 +1096,21 @@ class InventoryView(QMainWindow):
             self.show_message("Error", f"Orders dialog not available: {str(e)}", QMessageBox.Icon.Critical)
         except Exception as e:
             self.show_message("Error", f"Failed to open orders: {str(e)}", QMessageBox.Icon.Critical)
+
+    # ---------------------------------------------------------
+    # DAMAGE REPORT HELPERS
+    # ---------------------------------------------------------
+    def load_damage_item_combo(self, items):
+        from view.damage_report_view import load_damage_item_combo
+        load_damage_item_combo(self, items)
+
+    def populate_damage_table(self, reports):
+        from view.damage_report_view import populate_damage_table
+        populate_damage_table(self, reports)
+
+    def clear_damage_form(self):
+        from view.damage_report_view import clear_damage_form
+        clear_damage_form(self)
 
     # ---------------------------------------------------------
     # MESSAGE HELPERS

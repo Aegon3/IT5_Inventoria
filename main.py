@@ -97,6 +97,12 @@ def main():
 
             print("📊 Loading sample data...")
             model.load_sample_data()
+
+            # Wire Damage Report controller for staff
+            if user_role == "staff":
+                from controller.damage_report_controller import DamageReportController
+                damage_ctrl = DamageReportController(model, view, db_config, logged_in_user)
+
             print("✅ MVC setup completed successfully")
 
         except Exception as e:
