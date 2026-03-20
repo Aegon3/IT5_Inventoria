@@ -773,7 +773,7 @@ class InventoryView(QMainWindow):
 
                 reject_btn = QPushButton("Reject")
                 reject_btn.setObjectName("reject_btn")
-                reject_btn.setFixedSize(75, 24)
+                reject_btn.setFixedSize(75, 20)
                 reject_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, False))
 
                 actions_layout.addWidget(approve_btn)
