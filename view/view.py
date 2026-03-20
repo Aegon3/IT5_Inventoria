@@ -540,7 +540,7 @@ class InventoryView(QMainWindow):
 
         # MAKE TABLE READ-ONLY
         self.inventory_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.inventory_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.inventory_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.inventory_table.setAlternatingRowColors(True)
         self.inventory_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         layout.addWidget(self.inventory_table)
@@ -572,7 +572,7 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(adjust_btn)
         else:
             # STAFF: Can only adjust stock quantities (no add/edit/delete items)
-           pass
+            pass
 
         button_layout.addStretch()
 
