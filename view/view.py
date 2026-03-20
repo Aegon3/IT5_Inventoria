@@ -297,7 +297,7 @@ class InventoryView(QMainWindow):
         lbl_app = QLabel("Inventoria")
         lbl_app.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         lbl_app.setStyleSheet("font-size:15px;font-weight:700;color:#F9FAFB;background:transparent;")
-        lbl_sub = QLabel("Hotel Management")
+        lbl_sub = QLabel("Hotel Inventory Management")
         lbl_sub.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         lbl_sub.setStyleSheet("font-size:10px;color:#4B5563;background:transparent;")
 
