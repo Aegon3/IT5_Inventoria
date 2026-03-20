@@ -572,10 +572,7 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(adjust_btn)
         else:
             # STAFF: Can only adjust stock quantities (no add/edit/delete items)
-            adjust_btn = QPushButton(" Adjust Stock")
-            adjust_btn.setObjectName("adjust_btn")
-            adjust_btn.clicked.connect(self._on_adjust_stock_clicked)
-            button_layout.addWidget(adjust_btn)
+           pass
 
         button_layout.addStretch()
 
