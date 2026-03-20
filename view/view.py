@@ -503,7 +503,7 @@ class InventoryView(QMainWindow):
         layout.addWidget(refresh_btn)
 
         # ── Activity Log Section ────────────────────────────────
-        activity_label = QLabel("Activity Log — Who Did What & When")
+        activity_label = QLabel("🕵️ Activity Log — Who Did What & When")
         activity_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         activity_label.setStyleSheet("padding: 10px; color: #2980B9; margin-top: 10px;")
         layout.addWidget(activity_label)
