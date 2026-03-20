@@ -492,6 +492,8 @@ class InventoryView(QMainWindow):
         ])
         self.approvals_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.approvals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.approvals_table.horizontalHeader().setSectionResizeMode(9, QHeaderView.ResizeMode.Fixed)
+        self.approvals_table.setColumnWidth(9, 170)
         self.approvals_table.setAlternatingRowColors(True)
         layout.addWidget(self.approvals_table)
 
@@ -769,12 +771,12 @@ class InventoryView(QMainWindow):
                 # Show Approve/Reject buttons for pending requests
                 approve_btn = QPushButton("Approve")
                 approve_btn.setObjectName("approve_btn")
-                approve_btn.setFixedSize(75, 24)
+                approve_btn.setFixedSize(80, 26)
                 approve_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, True))
 
                 reject_btn = QPushButton("Reject")
                 reject_btn.setObjectName("reject_btn")
-                reject_btn.setFixedSize(75, 24)
+                reject_btn.setFixedSize(80, 26)
                 reject_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, False))
 
                 actions_layout.addWidget(approve_btn)
