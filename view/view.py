@@ -762,7 +762,8 @@ class InventoryView(QMainWindow):
             # Column 9: Actions - Show buttons ONLY for pending requests
             actions_widget = QWidget()
             actions_layout = QHBoxLayout(actions_widget)
-            actions_layout.setContentsMargins(5, 2, 5, 2)
+            actions_layout.setContentsMargins(2, 1, 2, 1)
+            actions_layout.setSpacing(3)
 
             if approval.status == 'pending':
                 # Show Approve/Reject buttons for pending requests
@@ -773,7 +774,7 @@ class InventoryView(QMainWindow):
 
                 reject_btn = QPushButton("Reject")
                 reject_btn.setObjectName("reject_btn")
-                reject_btn.setFixedSize(70, 24)
+                reject_btn.setFixedSize(75, 24)
                 reject_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, False))
 
                 actions_layout.addWidget(approve_btn)
