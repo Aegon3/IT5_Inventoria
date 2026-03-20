@@ -6,11 +6,13 @@ Handles all UI components and user interactions
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QPushButton, QLabel,
-    QLineEdit, QComboBox, QTabWidget, QMessageBox, QHeaderView
+    QLineEdit, QComboBox, QTabWidget, QMessageBox, QHeaderView,
+    QStackedWidget, QFrame, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtWidgets import QInputDialog
 from PyQt6.QtGui import QPalette, QColor, QFont, QPixmap
+from PyQt6.QtWidgets import QStyle
 import os
 from view.kpi_dashboard import KPIDashboard
 
@@ -52,7 +54,8 @@ class InventoryView(QMainWindow):
         }
         self.order_controller = order_controller
         self.setWindowTitle("Inventoria")
-        self.setGeometry(100, 100, 1000, 700)
+        self.setGeometry(60, 60, 1280, 800)
+        self.setMinimumSize(1080, 680)
         self.setup_theme()
         self.setup_ui()
 
@@ -60,236 +63,463 @@ class InventoryView(QMainWindow):
     # THEME
     # ---------------------------------------------------------
     def setup_theme(self):
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
-        palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
-        palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))
-        palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(0, 0, 0))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(200, 200, 255))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(0, 0, 0))
-        self.setPalette(palette)
-
         self.setStyleSheet("""
-            QMainWindow { background-color: #ffffff; }
-            QWidget { background-color: #ffffff; color: #000000; }
-            QTableWidget { background-color: #ffffff; alternate-background-color: #f4f4f4; color: #000000; gridline-color: #cfcfcf; border: 1px solid #cfcfcf; }
-            QTableWidget::item:selected { background-color: #c9dcff; }
-            QHeaderView::section { background-color: #e6e6e6; color: #000000; padding: 8px; border: 1px solid #d0d0d0; font-weight: bold; }
-            QPushButton { background-color: #e6e6e6; color: #000000; border: 1px solid #bfbfbf; padding: 8px 16px; border-radius: 4px; font-weight: bold; }
-            QPushButton:hover { background-color: #d0d0d0; }
-            QPushButton:pressed { background-color: #c0c0c0; }
-            
-            /* Button Color Classes */
-            QPushButton#add_btn { background-color: #4CAF50; color: white; border: 1px solid #45a049; }
-            QPushButton#add_btn:hover { background-color: #45a049; }
-            QPushButton#add_btn:pressed { background-color: #3d8b40; }
-            
-            QPushButton#edit_btn { background-color: #2196F3; color: white; border: 1px solid #1976D2; }
-            QPushButton#edit_btn:hover { background-color: #1976D2; }
-            QPushButton#edit_btn:pressed { background-color: #1565C0; }
-            
-            QPushButton#delete_btn { background-color: #f44336; color: white; border: 1px solid #d32f2f; }
-            QPushButton#delete_btn:hover { background-color: #d32f2f; }
-            QPushButton#delete_btn:pressed { background-color: #c62828; }
-            
-            QPushButton#refresh_btn { background-color: #FF9800; color: white; border: 1px solid #F57C00; }
-            QPushButton#refresh_btn:hover { background-color: #F57C00; }
-            QPushButton#refresh_btn:pressed { background-color: #E65100; }
-            
-            QPushButton#report_btn { background-color: #9C27B0; color: white; border: 1px solid #7B1FA2; }
-            QPushButton#report_btn:hover { background-color: #7B1FA2; }
-            QPushButton#report_btn:pressed { background-color: #6A1B9A; }
-            
-            QPushButton#logout_btn { background-color: #607D8B; color: white; border: 1px solid #455A64; }
-            QPushButton#logout_btn:hover { background-color: #455A64; }
-            QPushButton#logout_btn:pressed { background-color: #37474F; }
-            
+            QMainWindow  { background:#F1F5F9; }
+            QWidget      { background:#F1F5F9; color:#0F172A;
+                           font-family:'Segoe UI',Arial,sans-serif; font-size:13px; }
 
-            
-            QPushButton#adjust_btn { background-color: #00BCD4; color: white; border: 1px solid #0097A7; }
-            QPushButton#adjust_btn:hover { background-color: #0097A7; }
-            QPushButton#adjust_btn:pressed { background-color: #00838F; }
-            
-            QPushButton#request_btn { background-color: #FFC107; color: #000; border: 1px solid #FFA000; }
-            QPushButton#request_btn:hover { background-color: #FFA000; }
-            QPushButton#request_btn:pressed { background-color: #FF8F00; }
-            
-            QPushButton#approve_btn { background-color: #8BC34A; color: white; border: 1px solid #689F38; }
-            QPushButton#approve_btn:hover { background-color: #689F38; }
-            QPushButton#approve_btn:pressed { background-color: #558B2F; }
-            
-            QPushButton#reject_btn { background-color: #E91E63; color: white; border: 1px solid #C2185B; }
-            QPushButton#reject_btn:hover { background-color: #C2185B; }
-            QPushButton#reject_btn:pressed { background-color: #AD1457; }
-            
-            QPushButton#order_btn { background-color: #673AB7; color: white; border: 1px solid #512DA8; }
-            QPushButton#order_btn:hover { background-color: #512DA8; }
-            QPushButton#order_btn:pressed { background-color: #4527A0; }
-            
-            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { background-color: #ffffff; color: #000000; border: 1px solid #bfbfbf; padding: 6px; border-radius: 3px; }
-            QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border: 1px solid #7aaaff; }
-            QLabel { color: #000000; }
-            QTabWidget::pane { border: 1px solid #d0d0d0; background-color: #ffffff; }
-            QTabBar::tab { background-color: #e6e6e6; color: #000000; padding: 10px 20px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; }
-            QTabBar::tab:selected { background-color: #ffffff; border-bottom: 2px solid #7aaaff; }
-            QTabBar::tab:hover { background-color: #dcdcdc; }
+            QWidget#sidebar  { background:#0D1117; }
+            QWidget#topbar   { background:#FFFFFF; border-bottom:1px solid #E2E8F0; }
+            QWidget#content_area { background:#F1F5F9; }
+            QStackedWidget   { background:#F1F5F9; }
+
+            QPushButton#nav_btn {
+                background:transparent; color:#6B7280; border:none;
+                border-radius:9px; padding:9px 14px; text-align:left;
+                font-size:13px; font-weight:normal;
+            }
+            QPushButton#nav_btn:hover   { background:#161B27; color:#D1D5DB; }
+            QPushButton#nav_btn:checked { background:rgba(99,102,241,0.15);
+                                          color:#A5B4FC; font-weight:600; border-radius:9px; }
+            QPushButton#nav_logout {
+                background:transparent; color:#F87171; border:none;
+                border-radius:9px; padding:9px 14px; text-align:left; font-size:13px;
+            }
+            QPushButton#nav_logout:hover { background:#161B27; color:#FCA5A5; }
+
+            QTableWidget {
+                background:#FFFFFF; alternate-background-color:#FAFAFA;
+                color:#0F172A; gridline-color:#F1F5F9;
+                border:1px solid #E2E8F0; border-radius:12px; font-size:13px;
+            }
+            QTableWidget::item          { padding:5px 8px; }
+            QTableWidget::item:selected { background:#EEF2FF; color:#1E1B4B; }
+            QHeaderView::section {
+                background:#F8FAFC; color:#94A3B8; padding:11px 16px;
+                border:none; border-bottom:1px solid #E2E8F0;
+                font-weight:700; font-size:11px; letter-spacing:0.6px;
+            }
+
+            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+                background:#F8FAFC; color:#0F172A; border:1px solid #E2E8F0;
+                border-radius:8px; padding:7px 11px; font-size:13px;
+            }
+            QComboBox QAbstractItemView {
+                background:#FFFFFF; color:#0F172A; border:1px solid #E2E8F0;
+                selection-background-color:#EEF2FF; selection-color:#3730A3;
+                outline:none; padding:4px;
+            }
+            QComboBox::drop-down { border:none; }
+
+            QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+                border:1.5px solid #6366F1; background:#FFFFFF;
+            }
+
+            QPushButton {
+                background:#F8FAFC; color:#475569; border:1px solid #E2E8F0;
+                border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500;
+            }
+            QPushButton:hover   { background:#F1F5F9; }
+            QPushButton:pressed { background:#E2E8F0; }
+
+            QPushButton#add_btn    { background:#6366F1; color:#fff; border:none; }
+            QPushButton#add_btn:hover { background:#4F46E5; }
+            QPushButton#edit_btn   { background:#EEF2FF; color:#3730A3; border:1px solid #C7D2FE; }
+            QPushButton#edit_btn:hover { background:#E0E7FF; }
+            QPushButton#delete_btn { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
+            QPushButton#delete_btn:hover { background:#FEE2E2; }
+            QPushButton#refresh_btn { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+            QPushButton#refresh_btn:hover { background:#FEF3C7; }
+            QPushButton#report_btn  { background:#F5F3FF; color:#5B21B6; border:1px solid #DDD6FE; }
+            QPushButton#report_btn:hover { background:#EDE9FE; }
+            QPushButton#adjust_btn  { background:#F0FDF4; color:#166534; border:1px solid #BBF7D0; }
+            QPushButton#adjust_btn:hover { background:#DCFCE7; }
+            QPushButton#request_btn { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+            QPushButton#request_btn:hover { background:#FEF3C7; }
+            QPushButton#approve_btn { background:#F0FDF4; color:#166534; border:1px solid #BBF7D0; }
+            QPushButton#approve_btn:hover { background:#DCFCE7; }
+            QPushButton#reject_btn  { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
+            QPushButton#reject_btn:hover { background:#FEE2E2; }
+            QPushButton#order_btn   { background:#EEF2FF; color:#3730A3; border:1px solid #C7D2FE; }
+            QPushButton#order_btn:hover { background:#E0E7FF; }
+            QPushButton#logout_btn  { background:transparent; color:#F87171; border:none; }
+            QPushButton#logout_btn:hover { background:#161B27; }
+
+            QLabel { color:#0F172A; background:transparent; }
+
+            QScrollBar:vertical { background:#F1F5F9; width:6px; border-radius:3px; }
+            QScrollBar::handle:vertical { background:#CBD5E1; border-radius:3px; min-height:24px; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
+
+            QTabWidget::pane { border:none; }
+            QTabBar::tab { background:transparent; color:transparent;
+                           border:none; padding:0; margin:0; width:0; height:0; }
         """)
-
     # ---------------------------------------------------------
     # MAIN UI
     # ---------------------------------------------------------
     def setup_ui(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QHBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        main_layout = QVBoxLayout(central_widget)
+        root.addWidget(self._create_sidebar())
 
-        header = self._create_header()
-        main_layout.addWidget(header)
+        right = QWidget()
+        right.setObjectName("content_area")
+        rl = QVBoxLayout(right)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.setSpacing(0)
+        rl.addWidget(self._create_topbar())
 
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._create_inventory_tab(), "Inventory")
-        self.tabs.addTab(self._create_low_stock_tab(), "Low Stock Alerts")
+        self.stack = QStackedWidget()
+        self._pages = {}
+        idx = 0
 
-        # Add Statistics tab only for admin
+        self.stack.addWidget(self._create_inventory_tab())
+        self._pages["Inventory"] = idx; idx += 1
+
+        self.stack.addWidget(self._create_low_stock_tab())
+        self._pages["Low Stock"] = idx; idx += 1
+
         if self.user_role == "admin":
-            self.tabs.addTab(self._create_stats_tab(), "Statistics")
+            self.stack.addWidget(self._create_stats_tab())
+            self._pages["Statistics"] = idx; idx += 1
 
-        # Add suppliers tab for all users
-        self.tabs.addTab(self._create_suppliers_tab(), "Suppliers")
+        self.stack.addWidget(self._create_suppliers_tab())
+        self._pages["Suppliers"] = idx; idx += 1
 
-        # Add approvals tab only for admin
         if self.user_role == "admin":
-            self.tabs.addTab(self._create_approvals_tab(), "Activity Log")
+            self.stack.addWidget(self._create_approvals_tab())
+            self._pages["Activity Log"] = idx; idx += 1
 
-        # Add Damage Report tab for staff only
         if self.user_role == "staff":
             from view.damage_report_view import create_damage_report_tab
-            self.tabs.addTab(create_damage_report_tab(self), "Damage Report")
+            self.stack.addWidget(create_damage_report_tab(self))
+            self._pages["Damage Report"] = idx; idx += 1
 
-        # Add Stock Issuance tab for staff only
         if self.user_role == "staff":
             from view.stock_issuance_view import create_stock_issuance_tab
-            self.tabs.addTab(create_stock_issuance_tab(self), "Stock Issuance")
+            self.stack.addWidget(create_stock_issuance_tab(self))
+            self._pages["Stock Issuance"] = idx; idx += 1
 
-        # Wire KPI dashboard to tabs (kpi_controller wired later by InventoryController)
+        rl.addWidget(self.stack)
+        root.addWidget(right, 1)
+
+        # Hidden QTabWidget kept for kpi_controller.set_tabs() compatibility
+        self.tabs = QTabWidget()
+        self.tabs.setVisible(False)
+        for name in self._pages:
+            self.tabs.addTab(QWidget(), name)
         if self.user_role == "admin":
             self.kpi_dashboard.set_tabs(self.tabs)
 
-        main_layout.addWidget(self.tabs)
+        self._connect_nav()
+        self._set_btn_icons()
 
     # ---------------------------------------------------------
-    # HEADER
+    # BUTTON ICONS
     # ---------------------------------------------------------
-    def _create_header(self):
-        header_widget = QWidget()
-        layout = QHBoxLayout(header_widget)
-        layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    def _set_btn_icons(self):
+        """Assign QStyle standard icons to all action buttons after UI is built."""
+        SP = QStyle.StandardPixmap
+        si = self.style().standardIcon
+        sz = QSize(16, 16)
+        icon_map = {
+            "add_btn":     si(SP.SP_FileDialogNewFolder),
+            "edit_btn":    si(SP.SP_FileDialogDetailedView),
+            "delete_btn":  si(SP.SP_TrashIcon),
+            "adjust_btn":  si(SP.SP_FileDialogContentsView),
+            "refresh_btn": si(SP.SP_BrowserReload),
+            "order_btn":   si(SP.SP_ArrowForward),
+            "request_btn": si(SP.SP_MessageBoxQuestion),
+            "approve_btn": si(SP.SP_DialogApplyButton),
+            "reject_btn":  si(SP.SP_DialogCancelButton),
+            "report_btn":  si(SP.SP_FileDialogContentsView),
+        }
+        for obj_name, icon in icon_map.items():
+            for btn in self.findChildren(QPushButton):
+                if btn.objectName() == obj_name:
+                    btn.setIcon(icon)
+                    btn.setIconSize(sz)
+
+    # ---------------------------------------------------------
+    # SIDEBAR
+    # ---------------------------------------------------------
+    def _create_sidebar(self):
+        sb = QWidget()
+        sb.setObjectName("sidebar")
+        sb.setFixedWidth(230)
+        lay = QVBoxLayout(sb)
+        lay.setContentsMargins(14, 26, 14, 18)
+        lay.setSpacing(0)
 
         # Logo
-        logo_label = QLabel()
-        logo_path = "inventoria.jpeg"
-        possible_paths = [
-            logo_path,
-            os.path.join(os.path.dirname(__file__), logo_path),
-            os.path.expanduser(f"~/Downloads/{logo_path}"),
-            os.path.expanduser(f"~/Desktop/{logo_path}")
+        # ── Logo block — centered, prominent ───────────────
+        logo_col = QVBoxLayout()
+        logo_col.setSpacing(8)
+        logo_col.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        icon_lbl = QLabel()
+        icon_lbl.setFixedSize(72, 72)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setScaledContents(False)
+        _logo_paths = [
+            "inventoria.jpeg",
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "inventoria.jpeg"),
+            os.path.join(os.path.dirname(__file__), "inventoria.jpeg"),
+            os.path.expanduser("~/Downloads/inventoria.jpeg"),
         ]
-        loaded = False
-        for path in possible_paths:
-            if os.path.exists(path):
-                pix = QPixmap(path)
-                if not pix.isNull():
-                    pix = pix.scaledToHeight(100, Qt.TransformationMode.SmoothTransformation)
-                    logo_label.setPixmap(pix)
-                    loaded = True
+        _logo_loaded = False
+        for _p in _logo_paths:
+            if os.path.exists(_p):
+                _pix = QPixmap(_p)
+                if not _pix.isNull():
+                    icon_lbl.setPixmap(_pix.scaled(
+                        72, 72,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    ))
+                    _logo_loaded = True
                     break
-        if not loaded:
-            logo_label.setText("Inventoria")
-            logo_label.setFont(QFont("Arial", 30))
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        if not _logo_loaded:
+            icon_lbl.setText("INV")
+            icon_lbl.setStyleSheet(
+                "background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+                "stop:0 #818CF8,stop:1 #6366F1);"
+                "border-radius:16px;font-size:18px;font-weight:700;color:#fff;"
+            )
+        else:
+            icon_lbl.setStyleSheet("border-radius:12px;")
 
-        # Title and user info
-        title_layout = QVBoxLayout()
-        title_label = QLabel("Inventoria")
-        title_label.setFont(QFont("Arial", 48, QFont.Weight.Bold))
-        title_label.setStyleSheet("padding: 0px; margin: 0px;")
+        lbl_app = QLabel("Inventoria")
+        lbl_app.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        lbl_app.setStyleSheet("font-size:15px;font-weight:700;color:#F9FAFB;background:transparent;")
+        lbl_sub = QLabel("Hotel Management")
+        lbl_sub.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        lbl_sub.setStyleSheet("font-size:10px;color:#4B5563;background:transparent;")
 
-        # NEW: User role display
-        user_info = QLabel(f"{self.username} ({self.user_role.upper()})")
-        user_info.setFont(QFont("Arial", 12))
-        user_info.setStyleSheet("color: #666; padding: 0px; margin: 0px;")
+        logo_col.addWidget(icon_lbl, 0, Qt.AlignmentFlag.AlignHCenter)
+        logo_col.addWidget(lbl_app)
+        logo_col.addWidget(lbl_sub)
+        lay.addLayout(logo_col)
+        lay.addSpacing(16)
 
-        title_layout.addWidget(title_label)
-        title_layout.addWidget(user_info)
+        # User card
+        uc = QWidget()
+        uc.setStyleSheet(
+            "QWidget{background:rgba(255,255,255,0.04);"
+            "border:1px solid rgba(255,255,255,0.07);border-radius:12px;}"
+        )
+        uc_lay = QHBoxLayout(uc)
+        uc_lay.setContentsMargins(10, 10, 10, 10)
+        uc_lay.setSpacing(10)
+        av = QLabel(self.username[0].upper())
+        av.setFixedSize(34, 34)
+        av.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        av.setStyleSheet(
+            "background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            "stop:0 #818CF8,stop:1 #6366F1);"
+            "border-radius:17px;font-size:14px;font-weight:700;color:#fff;"
+        )
+        ui_w = QWidget()
+        ui_w.setStyleSheet("background:transparent;")
+        ui_col = QVBoxLayout(ui_w)
+        ui_col.setContentsMargins(0, 0, 0, 0)
+        ui_col.setSpacing(1)
+        lbl_un = QLabel(self.username)
+        lbl_un.setStyleSheet("font-size:12px;font-weight:600;color:#E5E7EB;background:transparent;")
+        lbl_ur = QLabel(self.user_role.capitalize())
+        lbl_ur.setStyleSheet("font-size:10px;color:#6B7280;background:transparent;")
+        ui_col.addWidget(lbl_un)
+        ui_col.addWidget(lbl_ur)
+        uc_lay.addWidget(av)
+        uc_lay.addWidget(ui_w)
+        uc_lay.addStretch()
+        lay.addWidget(uc)
+        lay.addSpacing(22)
 
-        title_widget = QWidget()
-        title_widget.setLayout(title_layout)
+        # Section label
+        sec = QLabel("MAIN MENU")
+        sec.setStyleSheet("font-size:10px;font-weight:700;color:#374151;letter-spacing:1.2px;background:transparent;padding:0 8px;")
+        lay.addWidget(sec)
+        lay.addSpacing(6)
 
-        # Create User button (admin only)
-        if self.user_role == "admin":
-            self.create_user_btn = QPushButton("👤 Create User")
-            self.create_user_btn.setObjectName("create_user_btn")
-            self.create_user_btn.setFixedHeight(40)
-            self.create_user_btn.setFixedWidth(140)
-            # Connection will be done in main.py
+        # Nav buttons
+        nav_items = self._nav_items()
+        self._nav_btns = {}
+        for sp_name, label in nav_items:
+            btn = QPushButton(f"  {label}")
+            btn.setObjectName("nav_btn")
+            btn.setCheckable(True)
+            btn.setFixedHeight(40)
+            btn.setIconSize(QSize(16, 16))
+            sp = getattr(QStyle.StandardPixmap, sp_name, None)
+            if sp:
+                btn.setIcon(self.style().standardIcon(sp))
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            lay.addWidget(btn)
+            lay.addSpacing(2)
+            self._nav_btns[label] = btn
 
-        # Report button
-        self.report_btn = QPushButton("📊 Generate Report")
-        self.report_btn.setObjectName("report_btn")
+        lay.addStretch()
+
+        # Divider
+        div = QFrame()
+        div.setFrameShape(QFrame.Shape.HLine)
+        div.setStyleSheet("background:rgba(255,255,255,0.06);border:none;max-height:1px;")
+        lay.addWidget(div)
+        lay.addSpacing(8)
+
+        # Report
+        self.report_btn = QPushButton("  Generate Report")
+        self.report_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
+        self.report_btn.setIconSize(QSize(16, 16))
+        self.report_btn.setObjectName("nav_btn")
         self.report_btn.setFixedHeight(40)
-        self.report_btn.setFixedWidth(160)
+        self.report_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.report_btn.clicked.connect(self._on_generate_report_clicked)
+        lay.addWidget(self.report_btn)
+        lay.addSpacing(2)
 
-        # Logout button
-        self.logout_btn = QPushButton("🚪 Logout")
-        self.logout_btn.setObjectName("logout_btn")
+        # Logout
+        self.logout_btn = QPushButton("  Logout")
+        self.logout_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
+        self.logout_btn.setIconSize(QSize(16, 16))
+        self.logout_btn.setObjectName("nav_logout")
         self.logout_btn.setFixedHeight(40)
-        self.logout_btn.setFixedWidth(120)
-        # Connection will be done in main.py
+        self.logout_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        lay.addWidget(self.logout_btn)
 
-        # Add widgets to layout
-        layout.addWidget(logo_label)
-        layout.addSpacing(15)
-        layout.addWidget(title_widget)
-        layout.addStretch()
+        return sb
+
+    def _nav_items(self):
+        items = [("SP_FileIcon", "Inventory"), ("SP_MessageBoxWarning", "Low Stock")]
         if self.user_role == "admin":
-            layout.addWidget(self.create_user_btn)
-        layout.addWidget(self.report_btn)
-        layout.addWidget(self.logout_btn)
+            items.append(("SP_FileDialogInfoView", "Statistics"))
+        items.append(("SP_DriveNetIcon", "Suppliers"))
+        if self.user_role == "admin":
+            items.append(("SP_FileDialogDetailedView", "Activity Log"))
+        if self.user_role == "staff":
+            items.append(("SP_MessageBoxCritical", "Damage Report"))
+            items.append(("SP_ArrowUp", "Stock Issuance"))
+        return items
 
-        return header_widget
+    def _connect_nav(self):
+        def make_fn(label):
+            def fn():
+                for b in self._nav_btns.values():
+                    b.setChecked(False)
+                self._nav_btns[label].setChecked(True)
+                self.stack.setCurrentIndex(self._pages[label])
+                self.tabs.setCurrentIndex(self._pages[label])
+                if hasattr(self, '_topbar_title'):
+                    self._topbar_title.setText(label)
+            return fn
+        for label, btn in self._nav_btns.items():
+            btn.clicked.connect(make_fn(label))
+        first = list(self._nav_btns.keys())[0]
+        self._nav_btns[first].setChecked(True)
 
+        # Sync stack when KPI dashboard cards change self.tabs index
+        # This allows kpi_dashboard card clicks to navigate the sidebar stack
+        def _on_tabs_changed(index):
+            self.stack.setCurrentIndex(index)
+            # Sync sidebar button highlight
+            for label, idx in self._pages.items():
+                if idx == index:
+                    for b in self._nav_btns.values():
+                        b.setChecked(False)
+                    if label in self._nav_btns:
+                        self._nav_btns[label].setChecked(True)
+                    if hasattr(self, '_topbar_title'):
+                        self._topbar_title.setText(label)
+                    break
+        self.tabs.currentChanged.connect(_on_tabs_changed)
+
+    # ---------------------------------------------------------
+    # TOPBAR
+    # ---------------------------------------------------------
+    def _create_topbar(self):
+        tb = QWidget()
+        tb.setObjectName("topbar")
+        tb.setFixedHeight(60)
+        lay = QHBoxLayout(tb)
+        lay.setContentsMargins(28, 0, 28, 0)
+        lay.setSpacing(12)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(2)
+        self._topbar_title = QLabel("Inventory")
+        self._topbar_title.setStyleSheet(
+            "font-size:16px;font-weight:700;color:#0F172A;background:transparent;"
+        )
+        sub = QLabel("Manage your hotel stock")
+        sub.setStyleSheet("font-size:11px;color:#94A3B8;background:transparent;")
+        title_col.addWidget(self._topbar_title)
+        title_col.addWidget(sub)
+        lay.addLayout(title_col)
+        lay.addStretch()
+
+        if self.user_role == "admin":
+            self.view_users_btn = QPushButton("  View Users")
+            self.view_users_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+            self.view_users_btn.setIconSize(QSize(16, 16))
+            self.view_users_btn.setObjectName("refresh_btn")
+            self.view_users_btn.setFixedHeight(34)
+            self.view_users_btn.setMinimumWidth(120)
+            lay.addWidget(self.view_users_btn)
+
+            self.create_user_btn = QPushButton("  Create User")
+            self.create_user_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogHelpButton))
+            self.create_user_btn.setIconSize(QSize(16, 16))
+            self.create_user_btn.setObjectName("edit_btn")
+            self.create_user_btn.setFixedHeight(34)
+            self.create_user_btn.setMinimumWidth(120)
+            lay.addWidget(self.create_user_btn)
+
+        return tb
+    # _create_header removed — replaced by _create_sidebar + _create_topbar
     # ---------------------------------------------------------
     # INVENTORY TAB
     # ---------------------------------------------------------
     def _create_inventory_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
-        search_layout = QHBoxLayout()
-        search_label = QLabel("Search:")
+        # Search card
+        sc = QWidget()
+        sc.setStyleSheet("QWidget{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;}")
+        sc_lay = QHBoxLayout(sc)
+        sc_lay.setContentsMargins(14, 0, 14, 0)
+        sc_lay.setSpacing(10)
+        sc.setFixedHeight(46)
+        lbl_s = QLabel("Search")
+        lbl_s.setStyleSheet("font-size:12px;color:#94A3B8;background:transparent;font-weight:500;")
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by item name...")
+        self.search_input.setPlaceholderText("Search items...")
+        self.search_input.setStyleSheet("border:none;background:transparent;font-size:13px;color:#0F172A;padding:0;")
         self.search_input.textChanged.connect(self.filter_changed_signal.emit)
-
-        filter_label = QLabel("Category:")
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFixedWidth(1)
+        sep.setStyleSheet("background:#E2E8F0;border:none;")
+        lbl_c = QLabel("Category:")
+        lbl_c.setStyleSheet("color:#94A3B8;font-size:12px;background:transparent;")
         self.category_filter = QComboBox()
-        self.category_filter.addItems([
-            "All", "Linens", "Toiletries", "Cleaning",
-            "Kitchen", "Furniture", "Electronics", "Other"
-        ])
+        self.category_filter.setStyleSheet("QComboBox{border:none;background:transparent;font-size:13px;color:#0F172A;padding:0;}QComboBox QAbstractItemView{background:#FFFFFF;color:#0F172A;border:1px solid #E2E8F0;selection-background-color:#EEF2FF;selection-color:#3730A3;}")
+        self.category_filter.addItems(["All","Linens","Toiletries","Cleaning","Kitchen","Furniture","Electronics","Other"])
         self.category_filter.currentTextChanged.connect(self.filter_changed_signal.emit)
-
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_input)
-        search_layout.addWidget(filter_label)
-        search_layout.addWidget(self.category_filter)
-        search_layout.addStretch()
-        layout.addLayout(search_layout)
+        sc_lay.addWidget(lbl_s)
+        sc_lay.addWidget(self.search_input, 1)
+        sc_lay.addWidget(sep)
+        sc_lay.addWidget(lbl_c)
+        sc_lay.addWidget(self.category_filter)
+        layout.addWidget(sc)
 
         # Table - FIXED: Remove Actions column for admin
         self.inventory_table = QTableWidget()
@@ -317,16 +547,18 @@ class InventoryView(QMainWindow):
 
         # Buttons - Role-based access control
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+        button_layout.setContentsMargins(0, 4, 0, 0)
 
         if self.user_role == "admin":
             # ADMIN: Full control - Add, Edit, Delete, Adjust Stock
-            add_btn = QPushButton("➕ Add Item")
+            add_btn = QPushButton(" Add Item")
             add_btn.setObjectName("add_btn")
-            edit_btn = QPushButton("✏️ Edit Item")
+            edit_btn = QPushButton(" Edit Item")
             edit_btn.setObjectName("edit_btn")
-            delete_btn = QPushButton("🗑️ Delete Item")
+            delete_btn = QPushButton(" Delete Item")
             delete_btn.setObjectName("delete_btn")
-            adjust_btn = QPushButton("📊 Adjust Stock")
+            adjust_btn = QPushButton(" Adjust Stock")
             adjust_btn.setObjectName("adjust_btn")
 
             add_btn.clicked.connect(self._on_add_item_clicked)
@@ -339,7 +571,11 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(delete_btn)
             button_layout.addWidget(adjust_btn)
         else:
-            pass  # Staff: no inventory buttons
+            # STAFF: Can only adjust stock quantities (no add/edit/delete items)
+            adjust_btn = QPushButton(" Adjust Stock")
+            adjust_btn.setObjectName("adjust_btn")
+            adjust_btn.clicked.connect(self._on_adjust_stock_clicked)
+            button_layout.addWidget(adjust_btn)
 
         button_layout.addStretch()
 
@@ -352,6 +588,8 @@ class InventoryView(QMainWindow):
     def _create_low_stock_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
         label = QLabel("LOW STOCK ALERTS")
         label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
@@ -370,7 +608,7 @@ class InventoryView(QMainWindow):
         self.low_stock_table.setAlternatingRowColors(True)
         layout.addWidget(self.low_stock_table)
 
-        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn = QPushButton(" Refresh")
         refresh_btn.setObjectName("refresh_btn")
         refresh_btn.clicked.connect(self.refresh_low_stock_signal.emit)
         layout.addWidget(refresh_btn)
@@ -382,8 +620,10 @@ class InventoryView(QMainWindow):
     def _create_stats_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
-        label = QLabel("📈 Inventory Statistics")
+        label = QLabel("Inventory Statistics")
         label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         label.setStyleSheet("padding: 10px; color: #2C3E50;")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -409,6 +649,8 @@ class InventoryView(QMainWindow):
     def _create_suppliers_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
         label = QLabel("SUPPLIER MANAGEMENT")
         label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
@@ -417,18 +659,20 @@ class InventoryView(QMainWindow):
 
         # Supplier buttons - Role-based access control
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+        button_layout.setContentsMargins(0, 4, 0, 0)
 
         if self.user_role == "admin":
             # ADMIN: Full supplier management
-            add_supplier_btn = QPushButton("➕ Add Supplier")
+            add_supplier_btn = QPushButton(" Add Supplier")
             add_supplier_btn.setObjectName("add_btn")
-            edit_supplier_btn = QPushButton("✏️ Edit Supplier")
+            edit_supplier_btn = QPushButton(" Edit Supplier")
             edit_supplier_btn.setObjectName("edit_btn")
-            delete_supplier_btn = QPushButton("🗑️ Delete Supplier")
+            delete_supplier_btn = QPushButton(" Delete Supplier")
             delete_supplier_btn.setObjectName("delete_btn")
-            place_order_btn = QPushButton("📦 Place Order")
+            place_order_btn = QPushButton(" Place Order")
             place_order_btn.setObjectName("order_btn")
-            view_orders_btn = QPushButton("📋 View Orders")
+            view_orders_btn = QPushButton(" View Orders")
             view_orders_btn.setObjectName("refresh_btn")
 
             add_supplier_btn.clicked.connect(self._on_add_supplier_clicked)
@@ -444,9 +688,9 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(view_orders_btn)
         else:
             # STAFF: Can place orders and view them (no supplier management)
-            place_order_btn = QPushButton("📦 Place Order")
+            place_order_btn = QPushButton(" Place Order")
             place_order_btn.setObjectName("order_btn")
-            view_orders_btn = QPushButton("📋 View Orders")
+            view_orders_btn = QPushButton(" View Orders")
             view_orders_btn.setObjectName("refresh_btn")
 
             place_order_btn.clicked.connect(self._on_place_order_clicked)
@@ -485,9 +729,11 @@ class InventoryView(QMainWindow):
     def _create_approvals_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
         # ── Stock Requests Section ──────────────────────────────
-        label = QLabel("📋 Stock Requests")
+        label = QLabel("Stock Requests")
         label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         label.setStyleSheet("padding: 10px; color: #27AE60;")
         layout.addWidget(label)
@@ -499,13 +745,17 @@ class InventoryView(QMainWindow):
             "Current Qty", "Requested Qty", "Reason", "Status", "Actions"
         ])
         self.approvals_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.approvals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.approvals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.approvals_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.approvals_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.approvals_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         self.approvals_table.horizontalHeader().setSectionResizeMode(9, QHeaderView.ResizeMode.Fixed)
-        self.approvals_table.setColumnWidth(9, 170)
+        self.approvals_table.setColumnWidth(9, 180)
+        self.approvals_table.setWordWrap(True)
         self.approvals_table.setAlternatingRowColors(True)
         layout.addWidget(self.approvals_table)
 
-        refresh_btn = QPushButton("🔄 Refresh Requests")
+        refresh_btn = QPushButton(" Refresh Requests")
         refresh_btn.setObjectName("refresh_btn")
         refresh_btn.clicked.connect(self.refresh_approvals_signal.emit)
         layout.addWidget(refresh_btn)
@@ -523,11 +773,17 @@ class InventoryView(QMainWindow):
         ])
         self.activity_log_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.activity_log_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
-        self.activity_log_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.activity_log_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        self.activity_log_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.activity_log_table.setColumnWidth(0, 140)
+        self.activity_log_table.setColumnWidth(1, 100)
+        self.activity_log_table.setColumnWidth(2, 160)
+        self.activity_log_table.setWordWrap(True)
+        self.activity_log_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.activity_log_table.setAlternatingRowColors(True)
         layout.addWidget(self.activity_log_table)
 
-        refresh_activity_btn = QPushButton("🔄 Refresh Activity Log")
+        refresh_activity_btn = QPushButton(" Refresh Activity Log")
         refresh_activity_btn.clicked.connect(self.refresh_activity_log_signal.emit)
         layout.addWidget(refresh_activity_btn)
 
@@ -549,6 +805,11 @@ class InventoryView(QMainWindow):
 
             category_item = QTableWidgetItem(item.category)
             category_item.setFlags(category_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            category_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            _cc={"Linens":("#EEF2FF","#3730A3"),"Toiletries":("#FDF4FF","#7E22CE"),"Cleaning":("#F0FDFA","#134E4A"),"Kitchen":("#FFF7ED","#9A3412"),"Furniture":("#F0F9FF","#0C4A6E"),"Electronics":("#FFFBEB","#92400E"),"Other":("#F9FAFB","#374151")}
+            if item.category in _cc:
+                category_item.setBackground(QColor(_cc[item.category][0]))
+                category_item.setForeground(QColor(_cc[item.category][1]))
             self.inventory_table.setItem(row, 1, category_item)
 
             qty_item = QTableWidgetItem(str(item.quantity))
@@ -571,12 +832,17 @@ class InventoryView(QMainWindow):
             supplier_item.setFlags(supplier_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.inventory_table.setItem(row, 6, supplier_item)
 
-            # Status column
+            # Status column — color pill
             status = "LOW STOCK" if item.is_low_stock else "OK"
             status_item = QTableWidgetItem(status)
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if item.is_low_stock:
-                status_item.setForeground(QColor("#FF6B6B"))
+                status_item.setForeground(QColor("#991B1B"))
+                status_item.setBackground(QColor("#FEE2E2"))
+            else:
+                status_item.setForeground(QColor("#166534"))
+                status_item.setBackground(QColor("#DCFCE7"))
 
             if self.user_role == "admin":
                 # Admin: Status at column 7, no Actions column
@@ -590,7 +856,7 @@ class InventoryView(QMainWindow):
                 actions_layout = QHBoxLayout(actions_widget)
                 actions_layout.setContentsMargins(5, 2, 5, 2)
 
-                request_btn = QPushButton("📝 Request")
+                request_btn = QPushButton(" Request")
                 request_btn.setObjectName("request_btn")
                 request_btn.setFixedSize(90, 25)
                 request_btn.clicked.connect(lambda checked, r=row: self._on_request_stock_row(r))
@@ -605,12 +871,12 @@ class InventoryView(QMainWindow):
                     for col in range(8):
                         table_item = self.inventory_table.item(row, col)
                         if table_item:
-                            table_item.setBackground(QColor(255, 240, 240))
+                            table_item.setBackground(QColor(255, 252, 252))
                 else:
                     for col in range(8):
                         table_item = self.inventory_table.item(row, col)
                         if table_item:
-                            table_item.setBackground(QColor(255, 240, 240))
+                            table_item.setBackground(QColor(255, 252, 252))
 
     def populate_low_stock_table(self, items):
         self.low_stock_table.setRowCount(0)
@@ -684,10 +950,13 @@ class InventoryView(QMainWindow):
 
             status_item = QTableWidgetItem(supplier.status)
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if supplier.status == 'active':
-                status_item.setForeground(QColor('#27AE60'))
+                status_item.setForeground(QColor('#166534'))
+                status_item.setBackground(QColor('#DCFCE7'))
             else:
-                status_item.setForeground(QColor('#E74C3C'))
+                status_item.setForeground(QColor('#991B1B'))
+                status_item.setBackground(QColor('#FEE2E2'))
             self.suppliers_table.setItem(row, 5, status_item)
 
             items_text = f"{supplier.items_supplied_count} item(s)"
@@ -760,12 +1029,16 @@ class InventoryView(QMainWindow):
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
             # Color code the status
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if approval.status == 'pending':
-                status_item.setForeground(Qt.GlobalColor.blue)
+                status_item.setForeground(QColor('#92400E'))
+                status_item.setBackground(QColor('#FEF3C7'))
             elif approval.status == 'approved':
-                status_item.setForeground(Qt.GlobalColor.darkGreen)
+                status_item.setForeground(QColor('#166534'))
+                status_item.setBackground(QColor('#DCFCE7'))
             elif approval.status == 'rejected':
-                status_item.setForeground(Qt.GlobalColor.red)
+                status_item.setForeground(QColor('#991B1B'))
+                status_item.setBackground(QColor('#FEE2E2'))
 
             self.approvals_table.setItem(row, 8, status_item)
 
@@ -851,10 +1124,11 @@ class InventoryView(QMainWindow):
             action_item.setFont(QFont("Arial", 9, QFont.Weight.Bold))
             self.activity_log_table.setItem(row, 2, action_item)
 
-            # Details
+            # Details — full text visible with word wrap
             details = log.get('details', '')
             details_item = QTableWidgetItem(details)
             details_item.setToolTip(details)
+            details_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.activity_log_table.setItem(row, 3, details_item)
 
     # ---------------------------------------------------------

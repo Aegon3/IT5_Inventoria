@@ -203,7 +203,7 @@ class OrderDialog(QDialog):
             self.setWindowTitle(f"📦 Place Order - {supplier_name}")
 
         self.setModal(True)
-        self.setMinimumWidth(600)
+        self.setMinimumWidth(750)
         self.setup_ui()
         if self.db_config:
             self.load_inventory_items()
@@ -270,6 +270,10 @@ class OrderDialog(QDialog):
             self.items_table.setColumnCount(7)  # Added supplier column
             self.items_table.setHorizontalHeaderLabels(["Item ID", "Item Name", "Category", "Current Stock", "Quantity", "Unit Price", "Supplier"])
             self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+            self.items_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+            self.items_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+            self.items_table.setColumnWidth(4, 100)
+            self.items_table.setColumnWidth(5, 150)
             self.items_table.setMaximumHeight(200)
             self.items_table.setColumnHidden(0, True)  # Hide Item ID column
         else:
@@ -277,6 +281,10 @@ class OrderDialog(QDialog):
             self.items_table.setColumnCount(6)  # Original layout
             self.items_table.setHorizontalHeaderLabels(["Item ID", "Item Name", "Category", "Current Stock", "Quantity", "Unit Price"])
             self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+            self.items_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+            self.items_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+            self.items_table.setColumnWidth(4, 100)
+            self.items_table.setColumnWidth(5, 150)
             self.items_table.setMaximumHeight(200)
             self.items_table.setColumnHidden(0, True)  # Hide Item ID column
 
@@ -412,6 +420,7 @@ class OrderDialog(QDialog):
         row = self.items_table.rowCount()
         self.items_table.insertRow(row)
 
+        self.items_table.setRowHeight(row, 36)
         # Item ID (hidden, non-editable) - ALWAYS COLUMN 0
         id_item = QTableWidgetItem(str(selected_item['id']))
         id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -436,6 +445,7 @@ class OrderDialog(QDialog):
         qty_spin = QSpinBox()
         qty_spin.setRange(1, 10000)
         qty_spin.setValue(self.quantity_spin.value())
+        qty_spin.setMinimumWidth(90)
         self.items_table.setCellWidget(row, 4, qty_spin)
 
         # Unit Price (editable) - ALWAYS COLUMN 5
@@ -444,6 +454,7 @@ class OrderDialog(QDialog):
         price_spin.setValue(self.unit_price_spin.value())
         price_spin.setPrefix("₱ ")
         price_spin.setDecimals(2)
+        price_spin.setMinimumWidth(140)
         self.items_table.setCellWidget(row, 5, price_spin)
 
         # Supplier column for auto-detect mode (ONLY column 6 when auto-detect)
@@ -878,19 +889,21 @@ class OrdersDialog(QDialog):
                 items_count = order['items_count'] or 0
                 self.orders_table.setItem(row, 6, QTableWidgetItem(str(items_count)))
 
+                self.orders_table.setRowHeight(row, 38)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
-                actions_layout.setContentsMargins(5, 2, 5, 2)
+                actions_layout.setContentsMargins(4, 4, 4, 4)
+                actions_layout.setSpacing(4)
 
-                view_btn = QPushButton("👁 View")
-                view_btn.setFixedSize(70, 25)
+                view_btn = QPushButton("View")
+                view_btn.setFixedSize(68, 28)
                 view_btn.clicked.connect(lambda checked, o=order: self.view_order_details(o))
                 actions_layout.addWidget(view_btn)
 
                 if self.user_role == "admin":
-                    delete_btn = QPushButton("🗑️ Delete")
-                    delete_btn.setFixedSize(70, 25)
-                    delete_btn.setStyleSheet("background-color: #E74C3C; color: white;")
+                    delete_btn = QPushButton("Delete")
+                    delete_btn.setFixedSize(68, 28)
+                    delete_btn.setStyleSheet("background-color: #E74C3C; color: white; border-radius:4px;")
                     delete_btn.clicked.connect(lambda checked, o=order: self.delete_order(o))
                     actions_layout.addWidget(delete_btn)
 

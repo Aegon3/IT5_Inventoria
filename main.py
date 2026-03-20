@@ -135,6 +135,23 @@ def main():
 
             view.create_user_btn.clicked.connect(open_create_user)
 
+            def open_view_users():
+                try:
+                    from view.create_user_dialog import CreateUserDialog
+                    from controller.user_controller import UserController
+                    user_ctrl = UserController(db_config)
+                    dlg = CreateUserDialog(view, user_controller=user_ctrl)
+                    # Switch directly to View All Users tab (index 1)
+                    from PyQt6.QtWidgets import QTabWidget
+                    tab_widget = dlg.findChild(QTabWidget)
+                    if tab_widget:
+                        tab_widget.setCurrentIndex(1)
+                    dlg.exec()
+                except Exception as e:
+                    QMessageBox.warning(view, "Error", f"Could not open dialog: {str(e)}")
+
+            view.view_users_btn.clicked.connect(open_view_users)
+
         # --- Flag to track if we should re-login ---
         should_relogin = [False]  # Using list to allow modification in nested function
 

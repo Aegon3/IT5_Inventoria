@@ -130,6 +130,8 @@ class CreateUserDialog(QDialog):
             "ID", "Username", "Full Name", "Role", "Actions"
         ])
         self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.users_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self.users_table.setColumnWidth(4, 120)
         self.users_table.setAlternatingRowColors(True)
         self.users_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.users_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -182,20 +184,22 @@ class CreateUserDialog(QDialog):
                 self.users_table.setItem(row, 3, role_item)
 
                 # Actions - Delete button (except for default admin/staff)
+                self.users_table.setRowHeight(row, 38)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
-                actions_layout.setContentsMargins(5, 2, 5, 2)
+                actions_layout.setContentsMargins(4, 4, 4, 4)
+                actions_layout.setSpacing(4)
 
                 # Only allow deletion of non-default users
                 if user['username'] not in ['admin', 'staff']:
-                    delete_btn = QPushButton("🗑️ Delete")
-                    delete_btn.setFixedSize(80, 25)
-                    delete_btn.setStyleSheet("background-color: #E74C3C; color: white;")
+                    delete_btn = QPushButton("Delete")
+                    delete_btn.setFixedSize(90, 28)
+                    delete_btn.setStyleSheet("background-color: #E74C3C; color: white; border-radius:4px;")
                     delete_btn.clicked.connect(lambda checked, uid=user['id'], uname=user['username']: self.delete_user(uid, uname))
                     actions_layout.addWidget(delete_btn)
                 else:
-                    protected_label = QLabel("🔒 Protected")
-                    protected_label.setStyleSheet("color: #888; font-size: 10px;")
+                    protected_label = QLabel("Protected")
+                    protected_label.setStyleSheet("color: #888; font-size: 11px;")
                     actions_layout.addWidget(protected_label)
 
                 actions_layout.addStretch()
