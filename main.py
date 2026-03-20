@@ -103,6 +103,11 @@ def main():
                 from controller.damage_report_controller import DamageReportController
                 damage_ctrl = DamageReportController(model, view, db_config, logged_in_user)
 
+            # Wire Stock Issuance controller for staff
+            if user_role == "staff":
+                from controller.stock_issuance_controller import StockIssuanceController
+                issuance_ctrl = StockIssuanceController(model, view, db_config, logged_in_user)
+
             print("✅ MVC setup completed successfully")
 
         except Exception as e:

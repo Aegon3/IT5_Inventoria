@@ -39,7 +39,7 @@ def create_damage_report_tab(view_instance):
     layout = QVBoxLayout(tab)
 
     # ── Header ──────────────────────────────────────────────
-    title = QLabel("🔴 Damage Report")
+    title = QLabel("Damage Report")
     title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
     title.setStyleSheet("padding: 10px; color: #E74C3C;")
     layout.addWidget(title)

@@ -37,6 +37,7 @@ class InventoryView(QMainWindow):
     place_order_signal = pyqtSignal(dict)
     refresh_activity_log_signal = pyqtSignal()
     damage_report_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, reason
+    stock_issuance_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, notes
 
     def __init__(self, user_role="staff", username="User", db_config=None, order_controller=None):
         super().__init__()
@@ -168,6 +169,11 @@ class InventoryView(QMainWindow):
         if self.user_role == "staff":
             from view.damage_report_view import create_damage_report_tab
             self.tabs.addTab(create_damage_report_tab(self), "Damage Report")
+
+        # Add Stock Issuance tab for staff only
+        if self.user_role == "staff":
+            from view.stock_issuance_view import create_stock_issuance_tab
+            self.tabs.addTab(create_stock_issuance_tab(self), "Stock Issuance")
 
         # Wire KPI dashboard to tabs (kpi_controller wired later by InventoryController)
         if self.user_role == "admin":
@@ -333,11 +339,7 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(delete_btn)
             button_layout.addWidget(adjust_btn)
         else:
-            # STAFF: Can only adjust stock quantities (no add/edit/delete items)
-            adjust_btn = QPushButton("📊 Adjust Stock")
-            adjust_btn.setObjectName("adjust_btn")
-            adjust_btn.clicked.connect(self._on_adjust_stock_clicked)
-            button_layout.addWidget(adjust_btn)
+            pass  # Staff: no inventory buttons
 
         button_layout.addStretch()
 
@@ -1111,6 +1113,21 @@ class InventoryView(QMainWindow):
     def clear_damage_form(self):
         from view.damage_report_view import clear_damage_form
         clear_damage_form(self)
+
+    # ---------------------------------------------------------
+    # STOCK ISSUANCE HELPERS
+    # ---------------------------------------------------------
+    def load_issuance_item_combo(self, items):
+        from view.stock_issuance_view import load_issuance_item_combo
+        load_issuance_item_combo(self, items)
+
+    def populate_issuance_table(self, issuances):
+        from view.stock_issuance_view import populate_issuance_table
+        populate_issuance_table(self, issuances)
+
+    def clear_issuance_form(self):
+        from view.stock_issuance_view import clear_issuance_form
+        clear_issuance_form(self)
 
     # ---------------------------------------------------------
     # MESSAGE HELPERS
