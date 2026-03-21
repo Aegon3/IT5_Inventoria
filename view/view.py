@@ -851,16 +851,27 @@ class InventoryView(QMainWindow):
                 # Actions column - only for staff (Request button)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
-                actions_layout.setContentsMargins(5, 2, 5, 2)
 
-                request_btn = QPushButton(" Request")
+                # Set margins to provide padding inside the cell
+                actions_layout.setContentsMargins(12, 4, 12, 4)
+                actions_layout.setSpacing(0)
+
+                # FIX: Center the button so it doesn't stretch to the cell edges
+                actions_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                request_btn = QPushButton("Request")
                 request_btn.setObjectName("request_btn")
-                request_btn.setFixedSize(90, 25)
+
+                # FIX: Set a fixed size for a consistent "pill" look
+                request_btn.setFixedSize(100, 32)
+
                 request_btn.clicked.connect(lambda checked, r=row: self._on_request_stock_row(r))
                 actions_layout.addWidget(request_btn)
 
                 actions_layout.addStretch()
+                self.inventory_table.setRowHeight(row, 40)
                 self.inventory_table.setCellWidget(row, 8, actions_widget)
+                self.inventory_table.setColumnWidth(8, 120)
 
             # Highlight low stock rows
             if item.is_low_stock:
