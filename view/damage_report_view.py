@@ -119,6 +119,8 @@ def create_damage_report_tab(view_instance):
     ])
     view_instance.damage_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
     view_instance.damage_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+    view_instance.damage_table.setWordWrap(True)
+    view_instance.damage_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
     view_instance.damage_table.setAlternatingRowColors(True)
     view_instance.damage_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
     layout.addWidget(view_instance.damage_table)
@@ -175,7 +177,7 @@ def populate_damage_table(view_instance, reports):
         view_instance.damage_table.setItem(row, 2, QTableWidgetItem(str(report.quantity)))
 
         reason = report.reason
-        reason_item = QTableWidgetItem(reason[:60] + '...' if len(reason) > 60 else reason)
+        reason_item = QTableWidgetItem(reason)
         reason_item.setToolTip(reason)
         view_instance.damage_table.setItem(row, 3, reason_item)
         view_instance.damage_table.setItem(row, 4, QTableWidgetItem(report.reported_by))
