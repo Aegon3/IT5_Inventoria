@@ -417,6 +417,10 @@ class InventoryView(QMainWindow):
                 self.tabs.setCurrentIndex(self._pages[label])
                 if hasattr(self, '_topbar_title'):
                     self._topbar_title.setText(label)
+                # Auto-refresh when navigating to Activity Log
+                if label == "Activity Log":
+                    self.refresh_approvals_signal.emit()
+                    self.refresh_activity_log_signal.emit()
             return fn
         for label, btn in self._nav_btns.items():
             btn.clicked.connect(make_fn(label))
@@ -571,8 +575,7 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(delete_btn)
             button_layout.addWidget(adjust_btn)
         else:
-            # STAFF: Can only adjust stock quantities (no add/edit/delete items)
-            pass
+            pass  # Staff: no inventory buttons
 
         button_layout.addStretch()
 
@@ -989,6 +992,7 @@ class InventoryView(QMainWindow):
         for approval in approvals:
             row = self.approvals_table.rowCount()
             self.approvals_table.insertRow(row)
+            self.approvals_table.setRowHeight(row, 38)
 
             # Column 0: Request ID
             id_item = QTableWidgetItem(str(approval.id))
@@ -1060,12 +1064,12 @@ class InventoryView(QMainWindow):
                 # Show Approve/Reject buttons for pending requests
                 approve_btn = QPushButton("Approve")
                 approve_btn.setObjectName("approve_btn")
-                approve_btn.setFixedSize(80, 26)
+                approve_btn.setFixedSize(80, 30)
                 approve_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, True))
 
                 reject_btn = QPushButton("Reject")
                 reject_btn.setObjectName("reject_btn")
-                reject_btn.setFixedSize(80, 26)
+                reject_btn.setFixedSize(75, 28)
                 reject_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, False))
 
                 actions_layout.addWidget(approve_btn)
