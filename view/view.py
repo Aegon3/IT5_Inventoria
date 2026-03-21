@@ -1056,7 +1056,7 @@ class InventoryView(QMainWindow):
                 # Show Approve/Reject buttons for pending requests
                 approve_btn = QPushButton("Approve")
                 approve_btn.setObjectName("approve_btn")
-                approve_btn.setFixedSize(75, 28)
+                approve_btn.setFixedSize(80, 30)
                 approve_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, True))
 
                 reject_btn = QPushButton("Reject")
