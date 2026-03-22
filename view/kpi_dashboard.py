@@ -56,10 +56,7 @@ class KPICard(QFrame):
         top_row.addWidget(title_label)
         top_row.addStretch()
 
-        self._hint = QLabel("→ click")
-        self._hint.setFont(QFont("Arial", 8))
-        self._hint.setStyleSheet("color: #aaa; border: none; padding: 0; background: transparent;")
-        top_row.addWidget(self._hint)
+
         layout.addLayout(top_row)
 
         self.value_label = QLabel(str(value))
@@ -79,12 +76,10 @@ class KPICard(QFrame):
 
     def enterEvent(self, event):
         self._apply_style(True)
-        self._hint.setStyleSheet(f"color: {self._color}; border: none; padding: 0; background: transparent; font-weight: bold;")
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         self._apply_style(False)
-        self._hint.setStyleSheet("color: #aaa; border: none; padding: 0; background: transparent;")
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):

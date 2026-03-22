@@ -454,17 +454,12 @@ class InventoryView(QMainWindow):
         lay.setContentsMargins(28, 0, 28, 0)
         lay.setSpacing(12)
 
-        title_col = QVBoxLayout()
-        title_col.setSpacing(2)
         self._topbar_title = QLabel("Inventory")
         self._topbar_title.setStyleSheet(
             "font-size:16px;font-weight:700;color:#0F172A;background:transparent;"
         )
-        sub = QLabel("Manage your hotel stock")
-        sub.setStyleSheet("font-size:11px;color:#94A3B8;background:transparent;")
-        title_col.addWidget(self._topbar_title)
-        title_col.addWidget(sub)
-        lay.addLayout(title_col)
+        self._topbar_title.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        lay.addWidget(self._topbar_title)
         lay.addStretch()
 
         if self.user_role == "admin":
@@ -1056,7 +1051,7 @@ class InventoryView(QMainWindow):
                 # Show Approve/Reject buttons for pending requests
                 approve_btn = QPushButton("Approve")
                 approve_btn.setObjectName("approve_btn")
-                approve_btn.setFixedSize(80, 30)
+                approve_btn.setFixedSize(75, 28)
                 approve_btn.clicked.connect(lambda checked, rid=approval.id: self._on_approve_request(rid, True))
 
                 reject_btn = QPushButton("Reject")
