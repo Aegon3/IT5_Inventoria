@@ -101,7 +101,6 @@ def create_stock_issuance_tab(view_instance):
     notes_label.setAlignment(Qt.AlignmentFlag.AlignTop)
     view_instance.issuance_notes_input = QTextEdit()
     view_instance.issuance_notes_input.setMaximumHeight(70)
-    view_instance.issuance_notes_input.setPlaceholderText("Optional notes (e.g. purpose, room number...)")
     notes_row.addWidget(notes_label)
     notes_row.addWidget(view_instance.issuance_notes_input)
     form_layout.addLayout(notes_row)
