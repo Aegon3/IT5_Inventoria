@@ -150,7 +150,7 @@ class LoginWindow(QDialog):
         password_container.setMinimumHeight(45)  # Ensure container height
         password_layout = QHBoxLayout(password_container)
         password_layout.setContentsMargins(0, 0, 0, 0)
-        password_layout.setSpacing(8)
+        password_layout.setSpacing(0)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Enter your password")
