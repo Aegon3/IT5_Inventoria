@@ -108,7 +108,7 @@ def create_stock_issuance_tab(view_instance):
     layout.addWidget(form_widget)
 
     # ── Submit button ────────────────────────────────────────
-    submit_btn = QPushButton("📤 Issue Stock")
+    submit_btn = QPushButton("Issue Stock")
     submit_btn.setObjectName("adjust_btn")
     submit_btn.setFixedHeight(36)
     submit_btn.clicked.connect(lambda: _on_submit(view_instance))

@@ -100,7 +100,7 @@ def create_damage_report_tab(view_instance):
     layout.addWidget(form_widget)
 
     # ── Submit button ────────────────────────────────────────
-    submit_btn = QPushButton("📋 Submit Damage Report")
+    submit_btn = QPushButton("Submit Damage Report")
     submit_btn.setObjectName("request_btn")
     submit_btn.setFixedHeight(36)
     submit_btn.clicked.connect(lambda: _on_submit(view_instance))
