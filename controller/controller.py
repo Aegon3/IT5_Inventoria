@@ -10,22 +10,22 @@ from controller.kpi_controller import KPIController
 class InventoryController:
     """Main controller for inventory operations with database"""
 
-    def __init__(self, model, view, user_role="staff", username="User"):
+    def __init__(self, model, view, user_role="staff", username="User", db_config=None):
         self.model = model
         self.view = view
         self.user_role = user_role
         self.username = username
 
-        # FIX: Use hardcoded db_config (matches main.py)
-        db_config = {
+        # db_config is passed in from main.py — the View never needs it
+        self.db_config = db_config or {
             'host': 'localhost',
             'database': 'inventoria_db',
             'user': 'root',
             'password': '',
             'port': 3308
         }
-        self.supplier_model = SupplierModel(db_config)
-        self.kpi_controller = KPIController(model, view, db_config)
+        self.supplier_model = SupplierModel(self.db_config)
+        self.kpi_controller = KPIController(model, view, self.db_config)
         if user_role == "admin":
             self.view.kpi_dashboard.set_kpi_controller(self.kpi_controller)
 
@@ -52,6 +52,7 @@ class InventoryController:
         self.view.place_order_signal.connect(self.handle_place_order)
         self.view.refresh_activity_log_signal.connect(self.handle_refresh_activity_log)
         self.view.view_suppliers_signal.connect(self.handle_view_supplier_details)
+        self.view.generate_report_signal.connect(self.handle_generate_report)
 
     def update(self):
         self.update_inventory_table()
@@ -366,7 +367,7 @@ class InventoryController:
 
             # STAFF: Submit orders as stock requests for admin approval
             if self.user_role == "staff":
-                print(f"📋 Staff order - creating stock requests for approval")
+                print(f" Staff order - creating stock requests for approval")
 
                 success_count = 0
                 order_summary = f"Order from {supplier_name}"
@@ -388,11 +389,11 @@ class InventoryController:
 
                 if success_count == len(items):
                     self.view.show_message("Order Submitted for Approval",
-                                           f"📋 Your order has been submitted for admin approval!\n\n"
+                                           f" Your order has been submitted for admin approval!\n\n"
                                            f"Supplier: {supplier_name}\n"
                                            f"Items: {len(items)}\n"
                                            f"Order Number: {order_number}\n\n"
-                                           f"✅ All {success_count} items sent to Activity Log\n"
+                                           f" All {success_count} items sent to Activity Log\n"
                                            f"An admin will review and approve your order.",
                                            QMessageBox.Icon.Information)
                     # Refresh approvals if admin
@@ -401,14 +402,14 @@ class InventoryController:
                     return True
                 else:
                     self.view.show_message("Partial Success",
-                                           f"⚠️ Only {success_count} of {len(items)} items were submitted.\n"
+                                           f" Only {success_count} of {len(items)} items were submitted.\n"
                                            f"Please try again for failed items.",
                                            QMessageBox.Icon.Warning)
                     return False
 
             # ADMIN: Create order directly (no approval needed)
             else:
-                print(f"✅ Admin order - creating directly and updating stock")
+                print(f" Admin order - creating directly and updating stock")
 
                 order_id = self.supplier_model.create_order(
                     supplier_id,
@@ -433,7 +434,7 @@ class InventoryController:
                         self.model.adjust_stock(item['id'], item['quantity'])
 
                     self.view.show_message("Success",
-                                           f"✅ Order #{order_id} created and stock updated!\n\n"
+                                           f" Order #{order_id} created and stock updated!\n\n"
                                            f"Supplier: {supplier_name}\n"
                                            f"Items: {len(items)}\n"
                                            f"Order Number: {order_number}\n\n"
@@ -448,6 +449,17 @@ class InventoryController:
             import traceback
             print(f"DEBUG Order placement error: {traceback.format_exc()}")
             return False
+
+    def handle_generate_report(self):
+        """Open the report dialog — controller owns db_config, not the View."""
+        try:
+            from view.report_generator import ReportDialog
+            dlg = ReportDialog(self.view, self.db_config)
+            dlg.exec()
+        except ImportError as e:
+            self.view.show_message("Error", f"Report module not available: {str(e)}", QMessageBox.Icon.Critical)
+        except Exception as e:
+            self.view.show_message("Error", f"Failed to generate report: {str(e)}", QMessageBox.Icon.Critical)
 
     def handle_view_supplier_details(self, supplier_id):
         """Handle viewing supplier details"""

@@ -29,7 +29,7 @@ HOW TO USE IN view.py:
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QSpinBox, QTextEdit,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -49,7 +49,7 @@ def create_stock_issuance_tab(view_instance):
     tab = QWidget()
     layout = QVBoxLayout(tab)
 
-    # ── Header ──────────────────────────────────────────────
+    #  Header
     title = QLabel("Stock Issuance")
     title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
     title.setStyleSheet("padding: 10px; color: #2C3E50;")
@@ -60,7 +60,7 @@ def create_stock_issuance_tab(view_instance):
     desc.setWordWrap(True)
     layout.addWidget(desc)
 
-    # ── Form ────────────────────────────────────────────────
+    #  Form
     form_widget = QWidget()
     form_widget.setStyleSheet("""
         QWidget {
@@ -107,14 +107,14 @@ def create_stock_issuance_tab(view_instance):
 
     layout.addWidget(form_widget)
 
-    # ── Submit button ────────────────────────────────────────
+    #  Submit button
     submit_btn = QPushButton("Issue Stock")
     submit_btn.setObjectName("adjust_btn")
     submit_btn.setFixedHeight(36)
     submit_btn.clicked.connect(lambda: _on_submit(view_instance))
     layout.addWidget(submit_btn)
 
-    # ── Issuance history table ───────────────────────────────
+    #  Issuance history table
     table_label = QLabel("Issuance History")
     table_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
     table_label.setStyleSheet("padding: 10px 0 5px 0;")
@@ -135,21 +135,17 @@ def create_stock_issuance_tab(view_instance):
 
 
 def _on_submit(view_instance):
-    """Handle issue stock button click — validates then emits signal"""
+    """Gather form values and emit signal — controller handles all validation."""
     item_id = view_instance.issuance_item_combo.currentData()
     item_name = view_instance.issuance_item_combo.currentText()
     quantity = view_instance.issuance_qty_spin.value()
-    notes = view_instance.issuance_notes_input.toPlainText().strip()
-
-    if not item_id:
-        QMessageBox.warning(view_instance, "Warning", "Please select an item.")
-        return
+    notes = view_instance.issuance_notes_input.toPlainText()
 
     # Strip stock info from display name
     if ' (Stock:' in item_name:
         item_name = item_name.split(' (Stock:')[0]
 
-    view_instance.stock_issuance_signal.emit(item_id, item_name, quantity, notes)
+    view_instance.stock_issuance_signal.emit(item_id or 0, item_name, quantity, notes)
 
 
 def load_issuance_item_combo(view_instance, items):

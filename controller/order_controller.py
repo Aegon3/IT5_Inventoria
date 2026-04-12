@@ -80,11 +80,11 @@ class OrderController:
                 db.cursor.execute(query)
 
             orders = db.cursor.fetchall()
-            print(f"✅ Loaded {len(orders)} orders from database")
+            print(f" Loaded {len(orders)} orders from database")
             return True, orders, ""
 
         except Exception as e:
-            print(f"❌ Error loading orders: {e}")
+            print(f" Error loading orders: {e}")
             return False, None, f"Failed to load orders: {str(e)}"
         finally:
             db.disconnect()
@@ -114,11 +114,11 @@ class OrderController:
                 (new_status, order_id)
             )
             db.conn.commit()
-            print(f"✅ Updated order {order_id} status to {new_status}")
+            print(f" Updated order {order_id} status to {new_status}")
             return True, f"Order status updated to '{new_status}'."
 
         except Exception as e:
-            print(f"❌ Error updating order status: {e}")
+            print(f" Error updating order status: {e}")
             return False, f"Failed to update order status: {str(e)}"
         finally:
             db.disconnect()
@@ -149,12 +149,12 @@ class OrderController:
             db.cursor.execute("DELETE FROM orders WHERE id = %s", (order_id,))
             db.conn.commit()
 
-            print(f"✅ Deleted order {order_number} (ID: {order_id})")
+            print(f" Deleted order {order_number} (ID: {order_id})")
             return True, f"Order {order_number} deleted successfully."
 
         except Exception as e:
             db.conn.rollback()
-            print(f"❌ Error deleting order: {e}")
+            print(f" Error deleting order: {e}")
             return False, f"Failed to delete order: {str(e)}"
         finally:
             db.disconnect()
@@ -184,11 +184,11 @@ class OrderController:
                 (order_id,)
             )
             db.conn.commit()
-            print(f"✅ Approved order {order_number}")
+            print(f" Approved order {order_number}")
             return True, f"Order {order_number} approved. Status changed to 'ordered'."
 
         except Exception as e:
-            print(f"❌ Error approving order: {e}")
+            print(f" Error approving order: {e}")
             return False, f"Failed to approve order: {str(e)}"
         finally:
             db.disconnect()
@@ -227,7 +227,7 @@ class OrderController:
             return True, items, supplier, ""
 
         except Exception as e:
-            print(f"❌ Error loading order details: {e}")
+            print(f" Error loading order details: {e}")
             return False, [], None, f"Failed to load order details: {str(e)}"
         finally:
             db.disconnect()
@@ -254,11 +254,11 @@ class OrderController:
                 ORDER BY name
             """)
             items = db.cursor.fetchall()
-            print(f"✅ Loaded {len(items)} inventory items for order dialog")
+            print(f" Loaded {len(items)} inventory items for order dialog")
             return True, items, ""
 
         except Exception as e:
-            print(f"❌ Error loading inventory items: {e}")
+            print(f" Error loading inventory items: {e}")
             return False, [], f"Failed to load items: {str(e)}"
         finally:
             db.disconnect()
@@ -287,7 +287,7 @@ class OrderController:
 
         try:
             normalized_input = self._normalize_supplier_name(supplier_name)
-            print(f"🔍 Looking for supplier: '{supplier_name}' (normalized: '{normalized_input}')")
+            print(f" Looking for supplier: '{supplier_name}' (normalized: '{normalized_input}')")
 
             # Strategy 1: Exact match (case-insensitive)
             db.cursor.execute(
@@ -296,7 +296,7 @@ class OrderController:
             )
             result = db.cursor.fetchone()
             if result:
-                print(f"✅ Found exact match: {result['name']} (ID: {result['id']})")
+                print(f" Found exact match: {result['name']} (ID: {result['id']})")
                 return result['id'], result['name']
 
             # Strategy 2: Normalized match
@@ -305,18 +305,18 @@ class OrderController:
 
             for supplier in all_suppliers:
                 if self._normalize_supplier_name(supplier['name']) == normalized_input:
-                    print(f"✅ Found normalized match: {supplier['name']} (ID: {supplier['id']})")
+                    print(f" Found normalized match: {supplier['name']} (ID: {supplier['id']})")
                     return supplier['id'], supplier['name']
 
             # Strategy 3: Partial/contains match
             for supplier in all_suppliers:
                 normalized_db = self._normalize_supplier_name(supplier['name'])
                 if normalized_input in normalized_db or normalized_db in normalized_input:
-                    print(f"✅ Found partial match: {supplier['name']}")
+                    print(f" Found partial match: {supplier['name']}")
                     return supplier['id'], supplier['name']
 
             # Strategy 4: Create new supplier
-            print(f"❌ No supplier found for '{supplier_name}', creating new one...")
+            print(f" No supplier found for '{supplier_name}', creating new one...")
             try:
                 db.cursor.execute("""
                     INSERT INTO suppliers (name, status, contact_person, phone, email, notes)
@@ -324,11 +324,11 @@ class OrderController:
                 """, (supplier_name,))
                 db.conn.commit()
                 supplier_id = db.cursor.lastrowid
-                print(f"✅ Created new supplier: {supplier_name} (ID: {supplier_id})")
+                print(f" Created new supplier: {supplier_name} (ID: {supplier_id})")
                 return supplier_id, supplier_name
 
             except Exception as create_error:
-                print(f"❌ Failed to create supplier: {create_error}")
+                print(f" Failed to create supplier: {create_error}")
                 if "Duplicate entry" in str(create_error):
                     db.cursor.execute(
                         "SELECT id, name FROM suppliers WHERE name = %s",
@@ -340,7 +340,7 @@ class OrderController:
                 return None, None
 
         except Exception as e:
-            print(f"❌ Error finding supplier: {e}")
+            print(f" Error finding supplier: {e}")
             return None, None
         finally:
             db.disconnect()

@@ -1,5 +1,3 @@
-
-
 from model.database import DatabaseHandler
 
 
@@ -164,7 +162,7 @@ class UserController:
             )
             db.conn.commit()
 
-            print(f"✅ New user created: {username} ({role})")
+            print(f" New user created: {username} ({role})")
             return True, f"User '{username}' ({role.upper()}) created successfully."
 
         except Exception as e:
@@ -202,7 +200,7 @@ class UserController:
             db.conn.commit()
 
             if db.cursor.rowcount > 0:
-                print(f"✅ User deleted: {username}")
+                print(f" User deleted: {username}")
                 return True, f"User '{username}' deleted successfully."
             else:
                 return False, f"User with ID {user_id} not found."
@@ -226,7 +224,7 @@ class UserController:
         """
         db = DatabaseHandler(**self.db_config)
         if not db.connect():
-            print("❌ Cannot load users: Database not connected")
+            print(" Cannot load users: Database not connected")
             return []
 
         try:
@@ -235,7 +233,7 @@ class UserController:
             return users if users else []
 
         except Exception as e:
-            print(f"❌ Error loading users: {e}")
+            print(f" Error loading users: {e}")
             return []
         finally:
             db.disconnect()

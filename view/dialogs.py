@@ -5,7 +5,6 @@ Inventory Management System - Dialogs
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QLineEdit, QComboBox,
                              QSpinBox, QDoubleSpinBox, QPushButton,
                              QHBoxLayout, QLabel)
-import mysql.connector
 
 
 class InventoryDialog(QDialog):
@@ -48,9 +47,20 @@ class InventoryDialog(QDialog):
                 # Handle dict format
                 self.name_input.setText(self.item_data.get('name', ''))
                 self.category_combo.setCurrentText(self.item_data.get('category', 'Linens'))
-                self.quantity_spin.setValue(self.item_data.get('quantity', 0))
-                self.min_stock_spin.setValue(self.item_data.get('min_stock', 0))
-                self.unit_price_spin.setValue(float(self.item_data.get('unit_price', 0.0)))
+                price_str = str(self.item_data.get('unit_price', '0'))
+                price_clean = price_str.replace('₱', '').replace('PHP', '').replace('$', '').strip()
+                try:
+                    price_value = float(price_clean)
+                except ValueError:
+                    import re
+                    numbers = re.findall(r'\d+\.?\d*', price_clean)
+                    price_value = float(numbers[0]) if numbers else 0.0
+                self.unit_price_spin.setValue(price_value)
+
+                qty_str = str(self.item_data.get('quantity', '0'))
+                self.quantity_spin.setValue(int(qty_str) if qty_str.isdigit() else 0)
+                min_str = str(self.item_data.get('min_stock', '0'))
+                self.min_stock_spin.setValue(int(min_str) if min_str.isdigit() else 0)
 
                 # Set supplier from dict
                 supplier_text = self.item_data.get('supplier', '')
@@ -108,34 +118,14 @@ class InventoryDialog(QDialog):
         self.setLayout(layout)
 
     def load_suppliers(self):
-        """Load existing suppliers from database"""
+        """Load suppliers via SupplierController — no DB access in the View."""
         try:
-            db_config = {
-                'host': 'localhost',
-                'database': 'inventoria_db',
-                'user': 'root',
-                'password': '',
-                'port': 3308
-            }
-
-            conn = mysql.connector.connect(**db_config)
-            cursor = conn.cursor(dictionary=True)
-
-            cursor.execute("SELECT id, name FROM suppliers WHERE status = 'active' ORDER BY name")
-            suppliers = cursor.fetchall()
-
-            # Add each supplier to the combo box
+            from controller.supplier_controller import SupplierController
+            suppliers = SupplierController.get_active_suppliers()
             for supplier in suppliers:
                 self.supplier_combo.addItem(supplier['name'], supplier['id'])
-
-            cursor.close()
-            conn.close()
-
-            print(f"✅ Loaded {len(suppliers)} suppliers for item dialog")
-
         except Exception as e:
-            print(f"⚠️ Error loading suppliers: {e}")
-            # Fallback to common suppliers if database fails
+            print(f" Error loading suppliers: {e}")
             fallback_suppliers = [
                 "Linen Supply Co", "Hospitality Goods Inc", "CleanPro Supplies",
                 "Paper Products LLC", "Hotel Food Service", "Restaurant Supply Co",
@@ -190,13 +180,13 @@ class StockAdjustmentDialog(QDialog):
         layout.addRow("Adjustment Amount:", self.adjustment_spin)
         layout.addRow(self.preview_label)
 
-        help_label = QLabel("💡 Use positive numbers to add stock, negative to remove")
+        help_label = QLabel(" Use positive numbers to add stock, negative to remove")
         help_label.setStyleSheet("font-size: 11px; color: #666666; padding: 5px;")
         layout.addRow(help_label)
 
         btn_layout = QHBoxLayout()
-        apply_btn = QPushButton("✓ Apply")
-        cancel_btn = QPushButton("✗ Cancel")
+        apply_btn = QPushButton(" Apply")
+        cancel_btn = QPushButton(" Cancel")
         apply_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(apply_btn)

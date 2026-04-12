@@ -50,7 +50,7 @@ class DamageReportModel:
         """Create damage_reports table if it does not exist"""
         db = DatabaseHandler(**self.db_config)
         if not db.connect():
-            print("❌ Cannot create damage_reports table: DB not connected")
+            print(" Cannot create damage_reports table: DB not connected")
             return
         try:
             db.cursor.execute("""
@@ -66,9 +66,9 @@ class DamageReportModel:
                 )
             """)
             db.conn.commit()
-            print("✅ damage_reports table ready")
+            print(" damage_reports table ready")
         except Exception as e:
-            print(f"❌ Create damage_reports table error: {e}")
+            print(f" Create damage_reports table error: {e}")
         finally:
             db.disconnect()
 
@@ -86,7 +86,7 @@ class DamageReportModel:
             db.conn.commit()
             return db.cursor.lastrowid
         except Exception as e:
-            print(f"❌ Add damage report error: {e}")
+            print(f" Add damage report error: {e}")
             return None
         finally:
             db.disconnect()
@@ -104,7 +104,7 @@ class DamageReportModel:
             rows = db.cursor.fetchall()
             return [DamageReport.from_db_row(r) for r in rows]
         except Exception as e:
-            print(f"❌ Get damage reports error: {e}")
+            print(f" Get damage reports error: {e}")
             return []
         finally:
             db.disconnect()

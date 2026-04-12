@@ -9,7 +9,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QPixmap, QIcon
 from PyQt6.QtSvg import QSvgRenderer
 import os
-from model.database import DatabaseHandler
 
 
 class LoginWindow(QDialog):
@@ -21,13 +20,16 @@ class LoginWindow(QDialog):
         self.username = ""
         self.user_data = None
         self.password_visible = False
-        self.db_config = db_config or {
+
+        # Create a UserController so the View never touches the DB directly
+        from controller.user_controller import UserController
+        self._user_controller = UserController(db_config or {
             'host': 'localhost',
             'database': 'inventoria_db',
             'user': 'root',
             'password': '',
             'port': 3308
-        }
+        })
         self.setWindowTitle("Inventoria - Login")
         self.setFixedSize(500, 750)
         self.setup_ui()
@@ -77,7 +79,7 @@ class LoginWindow(QDialog):
                     break
 
         if not logo_loaded:
-            logo_label.setText("📦")
+            logo_label.setText("")
             logo_label.setFont(QFont("Arial", 80))
             logo_label.setStyleSheet("color: #495057;")
 
@@ -309,7 +311,7 @@ class LoginWindow(QDialog):
             self.toggle_btn.setIconSize(pixmap.size())
         except Exception as e:
             # Fallback to text if SVG fails
-            self.toggle_btn.setText("👁" if not self.password_visible else "🙈")
+            self.toggle_btn.setText("" if not self.password_visible else "")
 
     def toggle_password_visibility(self):
         """Toggle password visibility"""
@@ -399,23 +401,12 @@ class LoginWindow(QDialog):
         msg.exec()
 
     def authenticate(self, username, password):
-        """Authenticate user"""
-        try:
-            db = DatabaseHandler(**self.db_config)
-            if db.connect():
-                user = db.authenticate_user(username, password)
-                db.disconnect()
-                if user:
-                    if 'role' not in user:
-                        user['role'] = 'staff'
-                    self.user_data = user
-                    return True
-            return False
-        except:
-            if username == "admin" and password == "admin":
-                self.user_data = {'username': 'admin', 'full_name': 'Administrator', 'role': 'admin'}
-                return True
-            return False
+        """Delegate authentication to UserController — View never touches the DB."""
+        success, user_data, error = self._user_controller.authenticate(username, password)
+        if success:
+            self.user_data = user_data
+            return True
+        return False
 
     def get_username(self):
         return self.username

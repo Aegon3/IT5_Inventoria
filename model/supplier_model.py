@@ -83,7 +83,7 @@ class SupplierModel:
     """Main model class for supplier management"""
 
     def __init__(self, db_config=None):
-        print(f"🔄 Initializing SupplierModel with config: {db_config}")
+        print(f" Initializing SupplierModel with config: {db_config}")
 
         if db_config is None:
             db_config = {
@@ -96,18 +96,18 @@ class SupplierModel:
 
         self.db = DatabaseHandler(**db_config)
         if not self.db.connect():
-            print("❌ Failed to connect to database in SupplierModel")
+            print(" Failed to connect to database in SupplierModel")
             self.db = None
             # Don't raise exception, just log and continue
         else:
-            print("✅ SupplierModel database connected successfully")
+            print(" SupplierModel database connected successfully")
 
     # ------------------- Supplier CRUD -------------------
 
     def add_supplier(self, name, contact_person, phone, email, address, notes=""):
         """Add a new supplier"""
         if self.db is None:
-            print("❌ Cannot add supplier: Database not connected")
+            print(" Cannot add supplier: Database not connected")
             return False
 
         return self.db.add_supplier(name, contact_person, phone, email, address, notes)
@@ -115,7 +115,7 @@ class SupplierModel:
     def update_supplier(self, supplier_id, name, contact_person, phone, email, address, status, notes):
         """Update an existing supplier"""
         if self.db is None:
-            print("❌ Cannot update supplier: Database not connected")
+            print(" Cannot update supplier: Database not connected")
             return False
 
         return self.db.update_supplier(supplier_id, name, contact_person, phone, email, address, status, notes)
@@ -123,7 +123,7 @@ class SupplierModel:
     def delete_supplier(self, supplier_id):
         """Delete a supplier - FIXED VERSION"""
         if self.db is None:
-            print("❌ Cannot delete supplier: Database not connected")
+            print(" Cannot delete supplier: Database not connected")
             return False, "Database not connected"
 
         return self.db.delete_supplier(supplier_id)
@@ -131,14 +131,14 @@ class SupplierModel:
     def get_all_suppliers(self):
         """Get all suppliers with item counts - SAFE VERSION"""
         if self.db is None:
-            print("⚠️ Database not connected, returning empty suppliers list")
+            print(" Database not connected, returning empty suppliers list")
             return []
 
         try:
             db_suppliers = self.db.get_all_suppliers()
 
             if db_suppliers is None:
-                print("⚠️ db.get_all_suppliers() returned None")
+                print(" db.get_all_suppliers() returned None")
                 return []
 
             suppliers = []
@@ -159,11 +159,11 @@ class SupplierModel:
 
                 suppliers.append(Supplier.from_db_row(row))
 
-            print(f"✅ Retrieved {len(suppliers)} suppliers from database")
+            print(f" Retrieved {len(suppliers)} suppliers from database")
             return suppliers
 
         except Exception as e:
-            print(f"❌ Error in get_all_suppliers: {e}")
+            print(f" Error in get_all_suppliers: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -171,7 +171,7 @@ class SupplierModel:
     def get_supplier_by_id(self, supplier_id):
         """Get supplier by ID"""
         if self.db is None:
-            print("❌ Cannot get supplier: Database not connected")
+            print(" Cannot get supplier: Database not connected")
             return None
 
         db_supplier = self.db.get_supplier_by_id(supplier_id)
@@ -184,7 +184,7 @@ class SupplierModel:
     def create_stock_request(self, item_id, requested_quantity, requested_by, reason="", request_type="manual"):
         """Create a new stock request - FIXED VERSION"""
         if self.db is None:
-            print("❌ Cannot create stock request: Database not connected")
+            print(" Cannot create stock request: Database not connected")
             return None
 
         try:
@@ -201,10 +201,10 @@ class SupplierModel:
             self.db.cursor.execute(query, (item_id, request_type, requested_quantity, current_quantity, reason, requested_by))
             self.db.conn.commit()
             request_id = self.db.cursor.lastrowid
-            print(f"✅ Created stock request ID: {request_id} for item {item_id}")
+            print(f" Created stock request ID: {request_id} for item {item_id}")
             return request_id
         except Exception as e:
-            print(f"❌ Create stock request error: {e}")
+            print(f" Create stock request error: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -212,7 +212,7 @@ class SupplierModel:
     def get_pending_approvals(self):
         """Get ALL stock requests (pending, approved, rejected) for Activity Log"""
         if self.db is None:
-            print("⚠️ Database not connected, returning empty approvals list")
+            print(" Database not connected, returning empty approvals list")
             return []
 
         try:
@@ -220,7 +220,7 @@ class SupplierModel:
             db_approvals = self.db.get_all_stock_requests()
 
             if db_approvals is None:
-                print("⚠️ db.get_all_stock_requests() returned None")
+                print(" db.get_all_stock_requests() returned None")
                 return []
 
             approvals = []
@@ -237,11 +237,11 @@ class SupplierModel:
 
                 approvals.append(StockRequest.from_db_row(row))
 
-            print(f"✅ Retrieved {len(approvals)} total requests from database")
+            print(f" Retrieved {len(approvals)} total requests from database")
             return approvals
 
         except Exception as e:
-            print(f"❌ Error in get_pending_approvals: {e}")
+            print(f" Error in get_pending_approvals: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -249,7 +249,7 @@ class SupplierModel:
     def approve_stock_request(self, request_id, approved_by, notes=""):
         """Approve a stock request - FIXED VERSION"""
         if self.db is None:
-            print("❌ Cannot approve stock request: Database not connected")
+            print(" Cannot approve stock request: Database not connected")
             return False
 
         try:
@@ -258,7 +258,7 @@ class SupplierModel:
             request = self.db.cursor.fetchone()
 
             if not request:
-                print(f"❌ Request {request_id} not found or already processed")
+                print(f" Request {request_id} not found or already processed")
                 return False
 
             # Update stock in items table
@@ -274,10 +274,10 @@ class SupplierModel:
             self.db.cursor.execute(status_query, (approved_by, notes, request_id))
 
             self.db.conn.commit()
-            print(f"✅ Approved stock request {request_id}, added {request['requested_quantity']} to item {request['item_id']}")
+            print(f" Approved stock request {request_id}, added {request['requested_quantity']} to item {request['item_id']}")
             return True
         except Exception as e:
-            print(f"❌ Approve stock request error: {e}")
+            print(f" Approve stock request error: {e}")
             self.db.conn.rollback()
             import traceback
             traceback.print_exc()
@@ -286,7 +286,7 @@ class SupplierModel:
     def reject_stock_request(self, request_id, approved_by, notes=""):
         """Reject a stock request - FIXED VERSION"""
         if self.db is None:
-            print("❌ Cannot reject stock request: Database not connected")
+            print(" Cannot reject stock request: Database not connected")
             return False
 
         try:
@@ -299,13 +299,13 @@ class SupplierModel:
             self.db.conn.commit()
 
             if self.db.cursor.rowcount > 0:
-                print(f"✅ Rejected stock request {request_id}")
+                print(f" Rejected stock request {request_id}")
                 return True
             else:
-                print(f"❌ Request {request_id} not found or already processed")
+                print(f" Request {request_id} not found or already processed")
                 return False
         except Exception as e:
-            print(f"❌ Reject stock request error: {e}")
+            print(f" Reject stock request error: {e}")
             self.db.conn.rollback()
             return False
 
@@ -314,7 +314,7 @@ class SupplierModel:
     def create_order(self, supplier_id, order_number, created_by, notes="", expected_delivery=None):
         """Create a new order"""
         if self.db is None:
-            print("❌ Cannot create order: Database not connected")
+            print(" Cannot create order: Database not connected")
             return None
 
         return self.db.create_order(supplier_id, order_number, created_by, notes, expected_delivery)
@@ -322,7 +322,7 @@ class SupplierModel:
     def add_order_item(self, order_id, item_id, quantity, unit_price):
         """Add item to an order"""
         if self.db is None:
-            print("❌ Cannot add order item: Database not connected")
+            print(" Cannot add order item: Database not connected")
             return False
 
         return self.db.add_order_item(order_id, item_id, quantity, unit_price)
@@ -330,7 +330,7 @@ class SupplierModel:
     def get_orders(self, status=None):
         """Get orders with optional status filter"""
         if self.db is None:
-            print("❌ Cannot get orders: Database not connected")
+            print(" Cannot get orders: Database not connected")
             return []
 
         return self.db.get_orders(status)
@@ -339,4 +339,4 @@ class SupplierModel:
         """Close database connection"""
         if self.db:
             self.db.disconnect()
-            print("✅ SupplierModel database connection closed")
+            print(" SupplierModel database connection closed")

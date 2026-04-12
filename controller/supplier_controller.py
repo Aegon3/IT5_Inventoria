@@ -24,6 +24,32 @@ class SupplierController:
     }
 
     @staticmethod
+    def get_active_suppliers():
+        """
+        Fetch active suppliers for populating dropdowns in dialogs.
+        Returns list of {'id', 'name'} dicts, or empty list on error.
+        """
+        try:
+            from model.database import DatabaseHandler
+            db_config = {
+                'host': 'localhost',
+                'database': 'inventoria_db',
+                'user': 'root',
+                'password': '',
+                'port': 3308
+            }
+            db = DatabaseHandler(**db_config)
+            if not db.connect():
+                return []
+            db.cursor.execute("SELECT id, name FROM suppliers WHERE status = 'active' ORDER BY name")
+            suppliers = db.cursor.fetchall()
+            db.disconnect()
+            return [{'id': s['id'], 'name': s['name']} for s in suppliers]
+        except Exception as e:
+            print(f"SupplierController.get_active_suppliers error: {e}")
+            return []
+
+    @staticmethod
     def get_status_color(status: str) -> str:
         """
         Return the hex color for a given order status.

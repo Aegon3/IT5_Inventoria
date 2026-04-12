@@ -40,18 +40,12 @@ class InventoryView(QMainWindow):
     refresh_activity_log_signal = pyqtSignal()
     damage_report_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, reason
     stock_issuance_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, notes
+    generate_report_signal = pyqtSignal()  # Controller opens the report dialog with db_config
 
-    def __init__(self, user_role="staff", username="User", db_config=None, order_controller=None):
+    def __init__(self, user_role="staff", username="User", order_controller=None):
         super().__init__()
         self.user_role = user_role
         self.username = username
-        self.db_config = db_config or {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': '',
-            'port': 3308
-        }
         self.order_controller = order_controller
         self.setWindowTitle("Inventoria")
         self.setGeometry(60, 60, 1280, 800)
@@ -257,7 +251,7 @@ class InventoryView(QMainWindow):
         lay.setSpacing(0)
 
         # Logo
-        # ── Logo block — centered, prominent ───────────────
+        #  Logo block — centered, prominent
         logo_col = QVBoxLayout()
         logo_col.setSpacing(8)
         logo_col.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -374,18 +368,18 @@ class InventoryView(QMainWindow):
         lay.addSpacing(8)
 
         # Report
-        self.report_btn = QPushButton("  Generate Report")
+        self.report_btn = QPushButton("Generate Report")
         self.report_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.report_btn.setIconSize(QSize(16, 16))
         self.report_btn.setObjectName("nav_btn")
         self.report_btn.setFixedHeight(40)
         self.report_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.report_btn.clicked.connect(self._on_generate_report_clicked)
+        self.report_btn.clicked.connect(self.generate_report_signal.emit)
         lay.addWidget(self.report_btn)
         lay.addSpacing(2)
 
         # Logout
-        self.logout_btn = QPushButton("  Logout")
+        self.logout_btn = QPushButton(" Logout")
         self.logout_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
         self.logout_btn.setIconSize(QSize(16, 16))
         self.logout_btn.setObjectName("nav_logout")
@@ -719,7 +713,7 @@ class InventoryView(QMainWindow):
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(16)
 
-        # ── Stock Requests Section ──────────────────────────────
+        #  Stock Requests Section
         label = QLabel("Stock Requests")
         label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         label.setStyleSheet("padding: 10px; color: #27AE60;")
@@ -747,7 +741,7 @@ class InventoryView(QMainWindow):
         refresh_btn.clicked.connect(self.refresh_approvals_signal.emit)
         layout.addWidget(refresh_btn)
 
-        # ── Activity Log Section ────────────────────────────────
+        #  Activity Log Section
         activity_label = QLabel("Activity Log — Who Did What & When")
         activity_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         activity_label.setStyleSheet("padding: 10px; color: #2980B9; margin-top: 10px;")
@@ -793,10 +787,6 @@ class InventoryView(QMainWindow):
             category_item = QTableWidgetItem(item.category)
             category_item.setFlags(category_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             category_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            _cc={"Linens":("#EEF2FF","#3730A3"),"Toiletries":("#FDF4FF","#7E22CE"),"Cleaning":("#F0FDFA","#134E4A"),"Kitchen":("#FFF7ED","#9A3412"),"Furniture":("#F0F9FF","#0C4A6E"),"Electronics":("#FFFBEB","#92400E"),"Other":("#F9FAFB","#374151")}
-            if item.category in _cc:
-                category_item.setBackground(QColor(_cc[item.category][0]))
-                category_item.setForeground(QColor(_cc[item.category][1]))
             self.inventory_table.setItem(row, 1, category_item)
 
             qty_item = QTableWidgetItem(str(item.quantity))
@@ -940,7 +930,6 @@ class InventoryView(QMainWindow):
                 address_display = address_text[:50] + "..."
             else:
                 address_display = address_text
-
             address_item = QTableWidgetItem(address_display)
             address_item.setFlags(address_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             address_item.setToolTip(address_text)
@@ -959,7 +948,7 @@ class InventoryView(QMainWindow):
 
             items_text = f"{supplier.items_supplied_count} item(s)"
             if supplier.items_list:
-                items_text = f"{supplier.items_supplied_count} item(s)\n{supplier.items_list[:50]}..."
+                items_text += f"\n{supplier.items_list[:50]}..."
             items_item = QTableWidgetItem(items_text)
             items_item.setFlags(items_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             items_item.setToolTip(supplier.items_list if supplier.items_list else "No items")
@@ -1182,14 +1171,14 @@ class InventoryView(QMainWindow):
             return
         item_name = self.inventory_table.item(row, 0).text()
 
-        supplier_col = 6
+        # View only reads raw display strings — controller/dialog handles parsing
         item_data = {
             'name': item_name,
             'category': self.inventory_table.item(row, 1).text(),
-            'quantity': int(self.inventory_table.item(row, 2).text()),
-            'min_stock': int(self.inventory_table.item(row, 3).text()),
-            'unit_price': float(self.inventory_table.item(row, 4).text().replace('PHP', '').replace('₱', '').strip()),
-            'supplier': self.inventory_table.item(row, supplier_col).text()
+            'quantity': self.inventory_table.item(row, 2).text(),
+            'min_stock': self.inventory_table.item(row, 3).text(),
+            'unit_price': self.inventory_table.item(row, 4).text(),
+            'supplier': self.inventory_table.item(row, 6).text()
         }
 
         from .dialogs import InventoryDialog
@@ -1218,11 +1207,7 @@ class InventoryView(QMainWindow):
             self.adjust_stock_signal.emit(item_name, dlg.get_adjustment())
 
     def _on_request_stock_clicked(self):
-        """Handle request stock button click from main button (staff only)"""
-        if self.user_role != "staff":
-            self.show_message("Error", "Only staff can request stock.", QMessageBox.Icon.Warning)
-            return
-
+        """Handle request stock button click — gather selection and emit, controller decides."""
         row = self.inventory_table.currentRow()
         if row < 0:
             self.show_message("Warning", "Please select an item to request stock.", QMessageBox.Icon.Warning)
@@ -1230,10 +1215,7 @@ class InventoryView(QMainWindow):
         self._on_request_stock_row(row)
 
     def _on_request_stock_row(self, row):
-        """Handle request stock from table row (staff only)"""
-        if self.user_role != "staff":
-            return
-
+        """Open the request dialog and emit signal — no role decisions here."""
         item_name = self.inventory_table.item(row, 0).text()
         current_qty = int(self.inventory_table.item(row, 2).text())
 
@@ -1241,47 +1223,21 @@ class InventoryView(QMainWindow):
             from view.supplier_views import StockRequestDialog
             dlg = StockRequestDialog(self, item_name, current_qty)
             if dlg.exec():
-                quantity = dlg.get_quantity()
-                reason = dlg.get_reason()
-                # Emit signal to controller
-                self.request_stock_signal.emit(item_name, quantity, reason)
+                self.request_stock_signal.emit(item_name, dlg.get_quantity(), dlg.get_reason())
         except ImportError:
             self.show_message("Error", "Stock request dialog not available.", QMessageBox.Icon.Critical)
 
     def _on_approve_request(self, request_id, approve):
-        """Handle approve/reject request from approvals table (admin only)"""
-        action = "approve" if approve else "reject"
-
-        # Get notes from user
+        """Gather optional notes from user then emit — controller decides what approve/reject means."""
         notes, ok = QInputDialog.getText(
             self,
-            f"{action.capitalize()} Request",
-            f"Enter notes for {action} (optional):",
+            "Request Action",
+            "Enter notes (optional):",
             QLineEdit.EchoMode.Normal,
             ""
         )
-
-        if ok or True:  # Allow empty notes
-            # Emit signal to controller
+        if ok:
             self.approve_request_signal.emit(request_id, approve, notes)
-
-    def _on_generate_report_clicked(self):
-        """Handle report generation button click"""
-        db_config = {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': '',
-            'port': 3308
-        }
-        try:
-            from .report_generator import ReportDialog
-            dlg = ReportDialog(self, db_config)
-            dlg.exec()
-        except ImportError as e:
-            self.show_message("Error", f"Report module not available: {str(e)}", QMessageBox.Icon.Critical)
-        except Exception as e:
-            self.show_message("Error", f"Failed to generate report: {str(e)}", QMessageBox.Icon.Critical)
 
     def _on_add_supplier_clicked(self):
         """Handle add supplier button click"""
@@ -1348,8 +1304,8 @@ class InventoryView(QMainWindow):
         """Handle place order button click"""
         try:
             from view.supplier_views import OrderDialog
-
-            dlg = OrderDialog(self, None, "Auto-detect Supplier", self.db_config, self.order_controller)
+            db_config = self.order_controller.db_config if self.order_controller else None
+            dlg = OrderDialog(self, None, "Auto-detect Supplier", db_config, self.order_controller)
 
             if dlg.exec():
                 order_data = dlg.get_data()
@@ -1364,8 +1320,8 @@ class InventoryView(QMainWindow):
         """Handle view orders button click"""
         try:
             from view.supplier_views import OrdersDialog
-
-            dlg = OrdersDialog(self, self.db_config, self.user_role, self.order_controller)
+            db_config = self.order_controller.db_config if self.order_controller else None
+            dlg = OrdersDialog(self, db_config, self.user_role, self.order_controller)
             dlg.exec()
         except ImportError as e:
             self.show_message("Error", f"Orders dialog not available: {str(e)}", QMessageBox.Icon.Critical)

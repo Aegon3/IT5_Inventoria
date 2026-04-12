@@ -156,10 +156,10 @@ class InventoryModel:
 
         stats = self.db.get_statistics()
         if stats['total_items'] == 0:
-            print("📦 Loading sample data...")
+            print(" Loading sample data...")
             for data in sample_data:
                 self.add_item(*data)
-            print("✓ Sample data loaded successfully!")
+            print(" Sample data loaded successfully!")
         else:
             print(f"ℹ Database already contains {stats['total_items']} items")
 

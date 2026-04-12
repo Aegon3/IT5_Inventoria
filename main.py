@@ -23,7 +23,7 @@ def main():
     }
 
     print("=" * 50)
-    print("🚀 Starting Inventoria Inventory Management System")
+    print(" Starting Inventoria Inventory Management System")
     print("=" * 50)
 
     # Initialize database
@@ -43,20 +43,20 @@ def main():
         if db.cursor.fetchone()['count'] == 0:
             db.cursor.execute(
                 "INSERT INTO users (username, password, full_name, role) VALUES ('admin', 'admin', 'System Administrator', 'admin')")
-            print("✅ Default admin user created")
+            print(" Default admin user created")
 
         db.cursor.execute("SELECT COUNT(*) as count FROM users WHERE username = 'staff'")
         if db.cursor.fetchone()['count'] == 0:
             db.cursor.execute(
                 "INSERT INTO users (username, password, full_name, role) VALUES ('staff', 'staff', 'Staff Member', 'staff')")
-            print("✅ Default staff user created")
+            print(" Default staff user created")
 
         db.conn.commit()
         db.disconnect()
-        print("✅ Database initialization completed")
+        print(" Database initialization completed")
 
     except Exception as e:
-        print(f"⚠️ Database initialization warning: {e}")
+        print(f" Database initialization warning: {e}")
         traceback.print_exc()
 
     # ========================================================================
@@ -65,37 +65,37 @@ def main():
 
     while True:  # Keep looping until user exits
         print("-" * 50)
-        print("🔐 Starting login process...")
+        print(" Starting login process...")
 
         # Login Window
         login_window = LoginWindow(db_config)
         login_result = login_window.exec()
 
         if not login_result or not login_window.is_authenticated():
-            print("❌ Login cancelled or failed - exiting application")
+            print(" Login cancelled or failed - exiting application")
             break  # Exit the loop and close app
 
         logged_in_user = login_window.get_username()
         user_data = login_window.get_user_data()
         user_role = user_data.get('role', 'staff')
 
-        print(f"✅ User authenticated: {logged_in_user} ({user_role})")
+        print(f" User authenticated: {logged_in_user} ({user_role})")
 
         # Create model, view, controller
         try:
-            print("📦 Initializing inventory model...")
+            print(" Initializing inventory model...")
             model = InventoryModel(db_config)
 
-            print("🖼️ Creating view...")
+            print(" Creating view...")
             from controller.order_controller import OrderController
             order_controller = OrderController(db_config)
-            view = InventoryView(user_role, logged_in_user, db_config, order_controller)
+            view = InventoryView(user_role, logged_in_user, order_controller)
             view.setWindowTitle(f"Inventoria - {logged_in_user} ({user_role.upper()})")
 
-            print("🎮 Initializing controller...")
-            controller_instance = InventoryController(model, view, user_role, logged_in_user)
+            print(" Initializing controller...")
+            controller_instance = InventoryController(model, view, user_role, logged_in_user, db_config)
 
-            print("📊 Loading sample data...")
+            print(" Loading sample data...")
             model.load_sample_data()
 
             # Wire Damage Report controller for staff
@@ -108,11 +108,11 @@ def main():
                 from controller.stock_issuance_controller import StockIssuanceController
                 issuance_ctrl = StockIssuanceController(model, view, db_config, logged_in_user)
 
-            print("✅ MVC setup completed successfully")
+            print(" MVC setup completed successfully")
 
         except Exception as e:
             error_msg = f"Failed to initialize application:\n\n{str(e)}\n\nDetailed error:\n{traceback.format_exc()}"
-            print(f"❌ INITIALIZATION ERROR:\n{error_msg}")
+            print(f" INITIALIZATION ERROR:\n{error_msg}")
             QMessageBox.critical(None, "Initialization Error", error_msg)
             break  # Exit on initialization error
 
@@ -130,7 +130,7 @@ def main():
 
                 except Exception as e:
                     QMessageBox.warning(view, "Error", f"Could not open dialog: {str(e)}")
-                    print(f"❌ Dialog error: {e}")
+                    print(f" Dialog error: {e}")
                     traceback.print_exc()
 
             view.create_user_btn.clicked.connect(open_create_user)
@@ -158,7 +158,7 @@ def main():
         # --- FIXED LOGOUT FUNCTION ---
         def perform_logout():
             """Logout and return to login screen - NO RESTART NEEDED"""
-            print(f"🔓 Logout requested by: {logged_in_user}")
+            print(f" Logout requested by: {logged_in_user}")
 
             # Show confirmation dialog
             reply = QMessageBox.question(
@@ -170,35 +170,35 @@ def main():
             )
 
             if reply == QMessageBox.StandardButton.Yes:
-                print(f"👋 Logging out user: {logged_in_user}")
+                print(f" Logging out user: {logged_in_user}")
 
                 # Cleanup resources
                 try:
-                    print("🧹 Cleaning up resources...")
+                    print(" Cleaning up resources...")
                     controller_instance.cleanup()
                 except Exception as e:
-                    print(f"⚠️ Cleanup warning: {e}")
+                    print(f" Cleanup warning: {e}")
 
                 # Close the view
                 try:
-                    print("🔴 Closing main window...")
+                    print(" Closing main window...")
                     view.close()
                 except Exception as e:
-                    print(f"⚠️ Window close warning: {e}")
+                    print(f" Window close warning: {e}")
 
                 # Set flag to re-login
                 should_relogin[0] = True
-                print("✅ Logout complete - will show login screen")
+                print(" Logout complete - will show login screen")
 
         # Connect logout button
-        print("🔗 Connecting logout button...")
+        print(" Connecting logout button...")
         view.logout_btn.clicked.connect(perform_logout)
-        print("✅ Logout functionality connected")
+        print(" Logout functionality connected")
 
         # Show window and start event loop
-        print("🎬 Showing main window...")
+        print(" Showing main window...")
         view.show()
-        print("✅ Application window displayed!")
+        print(" Application window displayed!")
         print("=" * 50)
 
         # Run the event loop for this session
@@ -207,14 +207,14 @@ def main():
         # After the window closes, check if we should re-login
         print("-" * 50)
         if should_relogin[0]:
-            print("🔄 User logged out - returning to login screen...")
+            print(" User logged out - returning to login screen...")
             # Loop will continue and show login window again
             continue
         else:
-            print("🛑 Application window closed - exiting...")
+            print(" Application window closed - exiting...")
             break  # User closed the window, exit the loop
 
-    print("👋 Inventoria shut down successfully")
+    print(" Inventoria shut down successfully")
     sys.exit(0)
 
 

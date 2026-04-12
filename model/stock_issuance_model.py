@@ -52,7 +52,7 @@ class StockIssuanceModel:
         """Create stock_issuances table if it does not exist"""
         db = DatabaseHandler(**self.db_config)
         if not db.connect():
-            print("❌ Cannot create stock_issuances table: DB not connected")
+            print(" Cannot create stock_issuances table: DB not connected")
             return
         try:
             db.cursor.execute("""
@@ -68,9 +68,9 @@ class StockIssuanceModel:
                 )
             """)
             db.conn.commit()
-            print("✅ stock_issuances table ready")
+            print(" stock_issuances table ready")
         except Exception as e:
-            print(f"❌ Create stock_issuances table error: {e}")
+            print(f" Create stock_issuances table error: {e}")
         finally:
             db.disconnect()
 
@@ -88,7 +88,7 @@ class StockIssuanceModel:
             db.conn.commit()
             return db.cursor.lastrowid
         except Exception as e:
-            print(f"❌ Add issuance error: {e}")
+            print(f" Add issuance error: {e}")
             return None
         finally:
             db.disconnect()
@@ -106,7 +106,7 @@ class StockIssuanceModel:
             rows = db.cursor.fetchall()
             return [StockIssuance.from_db_row(r) for r in rows]
         except Exception as e:
-            print(f"❌ Get issuances error: {e}")
+            print(f" Get issuances error: {e}")
             return []
         finally:
             db.disconnect()
@@ -121,7 +121,7 @@ class StockIssuanceModel:
             row = db.cursor.fetchone()
             return row['quantity'] if row else 0
         except Exception as e:
-            print(f"❌ Get current stock error: {e}")
+            print(f" Get current stock error: {e}")
             return 0
         finally:
             db.disconnect()
@@ -139,7 +139,7 @@ class StockIssuanceModel:
             db.conn.commit()
             return db.cursor.rowcount > 0
         except Exception as e:
-            print(f"❌ Deduct stock error: {e}")
+            print(f" Deduct stock error: {e}")
             return False
         finally:
             db.disconnect()
