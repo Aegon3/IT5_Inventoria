@@ -29,7 +29,7 @@ class SupplierDialog(QDialog):
         layout = QVBoxLayout()
 
         # Title
-        title_label = QLabel("📦 Supplier Information")
+        title_label = QLabel(" Supplier Information")
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
@@ -87,7 +87,7 @@ class SupplierDialog(QDialog):
 
         # Buttons
         button_layout = QHBoxLayout()
-        save_btn = QPushButton("💾 Save")
+        save_btn = QPushButton(" Save")
         cancel_btn = QPushButton("Cancel")
         save_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
@@ -127,7 +127,7 @@ class StockRequestDialog(QDialog):
         layout = QVBoxLayout()
 
         # Title
-        title_label = QLabel("📋 Stock Request")
+        title_label = QLabel(" Stock Request")
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
@@ -164,7 +164,7 @@ class StockRequestDialog(QDialog):
 
         # Buttons
         button_layout = QHBoxLayout()
-        submit_btn = QPushButton("📤 Submit Request")
+        submit_btn = QPushButton(" Submit Request")
         cancel_btn = QPushButton("Cancel")
         submit_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
@@ -189,7 +189,6 @@ class OrderDialog(QDialog):
         super().__init__(parent)
         self.supplier_id = supplier_id
         self.supplier_name = supplier_name
-        self.db_config = db_config
         self.order_controller = order_controller
         self.items = []
         self.order_suppliers = {}  # Track which supplier provides which items
@@ -198,14 +197,14 @@ class OrderDialog(QDialog):
         self.auto_detect_mode = supplier_id is None
 
         if self.auto_detect_mode:
-            self.setWindowTitle("📦 Place Order ")
+            self.setWindowTitle(" Place Order ")
         else:
-            self.setWindowTitle(f"📦 Place Order - {supplier_name}")
+            self.setWindowTitle(f" Place Order - {supplier_name}")
 
         self.setModal(True)
         self.setMinimumWidth(750)
         self.setup_ui()
-        if self.db_config:
+        if self.order_controller:
             self.load_inventory_items()
 
     def setup_ui(self):
@@ -213,9 +212,9 @@ class OrderDialog(QDialog):
 
         # Title
         if self.auto_detect_mode:
-            title_label = QLabel("📦 Place New Order ")
+            title_label = QLabel(" Place New Order ")
         else:
-            title_label = QLabel(f"📦 Place Order with {self.supplier_name}")
+            title_label = QLabel(f" Place Order with {self.supplier_name}")
 
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -228,7 +227,7 @@ class OrderDialog(QDialog):
             layout.addWidget(supplier_label)
         else:
             # Show auto-detect info
-            info_label = QLabel("💡 <b>Supplier will be auto-detected based on items you select</b>")
+            info_label = QLabel(" <b>Supplier will be auto-detected based on items you select</b>")
             info_label.setStyleSheet("padding: 10px; background-color: #E8F6F3; border-radius: 5px; color: #2C3E50;")
             layout.addWidget(info_label)
 
@@ -307,7 +306,7 @@ class OrderDialog(QDialog):
         self.unit_price_spin.setPrefix("₱ ")
         self.unit_price_spin.setDecimals(2)
 
-        add_btn = QPushButton("➕ Add Item")
+        add_btn = QPushButton(" Add Item")
         add_btn.clicked.connect(self._on_add_item_clicked)
 
         add_layout.addWidget(QLabel("Item:"))
@@ -321,7 +320,7 @@ class OrderDialog(QDialog):
 
         # Buttons
         button_layout = QHBoxLayout()
-        place_order_btn = QPushButton("📦 Place Order")
+        place_order_btn = QPushButton(" Place Order")
         cancel_btn = QPushButton("Cancel")
         place_order_btn.clicked.connect(self._on_place_order_clicked)  # CHANGED: Use custom handler
         cancel_btn.clicked.connect(self.reject)
@@ -352,7 +351,7 @@ class OrderDialog(QDialog):
             for item in self.items:
                 display_text = f"{item['name']} ({item['category']}) - Stock: {item['quantity']}"
                 self.item_combo.addItem(display_text, item['id'])
-            print(f"✅ Loaded {len(self.items)} items from database")
+            print(f" Loaded {len(self.items)} items from database")
 
     def _on_item_selected(self, index):
         """Auto-fill unit price when an item is selected"""
@@ -570,7 +569,7 @@ class OrderDialog(QDialog):
                                "1. Select an item from the dropdown\n"
                                "2. Set the quantity\n"
                                "3. Set the price\n"
-                               "4. Click the '➕ Add Item' button")
+                               "4. Click the ' Add Item' button")
             return None
 
         # Build order data
@@ -605,7 +604,7 @@ class StockApprovalDialog(QDialog):
         self.current_qty = current_qty
         self.min_stock = min_stock
         self.shortage = shortage
-        self.setWindowTitle("✅ Approve Stock Request")
+        self.setWindowTitle(" Approve Stock Request")
         self.setModal(True)
         self.setMinimumWidth(500)
         self.setup_ui()
@@ -614,7 +613,7 @@ class StockApprovalDialog(QDialog):
         layout = QVBoxLayout()
 
         # Title
-        title_label = QLabel("✅ STOCK APPROVAL")
+        title_label = QLabel(" STOCK APPROVAL")
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("padding: 10px; color: #27AE60;")
@@ -691,7 +690,7 @@ class StockApprovalDialog(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
-        approve_btn = QPushButton("✅ Approve Request")
+        approve_btn = QPushButton(" Approve Request")
         approve_btn.setStyleSheet("""
             QPushButton {
                 background-color: #27AE60;
@@ -742,26 +741,25 @@ class OrdersDialog(QDialog):
 
     def __init__(self, parent=None, db_config=None, user_role="staff", order_controller=None):
         super().__init__(parent)
-        self.db_config = db_config
         self.user_role = user_role
         self.order_controller = order_controller
-        self.setWindowTitle("📋 View Orders")
+        self.setWindowTitle(" View Orders")
         self.setModal(True)
 
         # FIXED: Make dialog fullscreen/maximized
         self.showMaximized()
 
         self.setup_ui()
-        if self.db_config:
+        if self.order_controller:
             self.load_orders()
         else:
-            QMessageBox.warning(self, "Warning", "Database configuration not set!")
+            QMessageBox.warning(self, "Warning", "Order controller not configured!")
 
     def setup_ui(self):
         layout = QVBoxLayout()
 
         # Title
-        title_label = QLabel("📋 ORDER MANAGEMENT")
+        title_label = QLabel(" ORDER MANAGEMENT")
         title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("padding: 10px; color: #2C3E50;")
@@ -778,7 +776,7 @@ class OrdersDialog(QDialog):
 
         filter_layout.addStretch()
 
-        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn = QPushButton(" Refresh")
         refresh_btn.clicked.connect(self.load_orders)
         filter_layout.addWidget(refresh_btn)
 
@@ -803,7 +801,7 @@ class OrdersDialog(QDialog):
         self.details_widget.setVisible(False)
         details_layout = QVBoxLayout(self.details_widget)
 
-        details_title = QLabel("📦 Order Details")
+        details_title = QLabel(" Order Details")
         details_title.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         details_layout.addWidget(details_title)
 
@@ -910,11 +908,11 @@ class OrdersDialog(QDialog):
                 actions_layout.addStretch()
                 self.orders_table.setCellWidget(row, 7, actions_widget)
 
-            print(f"✅ Loaded {len(orders)} orders from database")
+            print(f" Loaded {len(orders)} orders from database")
 
         except Exception as e:
             QMessageBox.critical(self, "Database Error", f"Failed to load orders: {str(e)}")
-            print(f"❌ Error loading orders: {e}")
+            print(f" Error loading orders: {e}")
 
     def update_order_status(self, order_id, new_status, row_idx):
         """Update order status via controller"""
@@ -933,7 +931,7 @@ class OrdersDialog(QDialog):
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to update order status: {str(e)}")
-            print(f"❌ Error updating order status: {e}")
+            print(f" Error updating order status: {e}")
 
     def delete_order(self, order):
         """Delete an order via controller"""

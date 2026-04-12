@@ -20,17 +20,16 @@ from view.kpi_dashboard import KPIDashboard
 class InventoryView(QMainWindow):
     """Main view class for inventory system"""
 
-    # Existing signals
     add_item_signal = pyqtSignal(dict)
     edit_item_signal = pyqtSignal(str, dict)
     delete_item_signal = pyqtSignal(str)
     adjust_stock_signal = pyqtSignal(str, int)
     filter_changed_signal = pyqtSignal()
     refresh_low_stock_signal = pyqtSignal()
+    my_requests_signal = pyqtSignal()
 
-    # NEW SIGNALS for suppliers and approvals
-    request_stock_signal = pyqtSignal(str, int, str)  # item_name, quantity, reason
-    approve_request_signal = pyqtSignal(int, bool, str)  # request_id, approve, notes
+    request_stock_signal = pyqtSignal(str, int, str)
+    approve_request_signal = pyqtSignal(int, bool, str)
     refresh_approvals_signal = pyqtSignal()
     view_suppliers_signal = pyqtSignal()
     add_supplier_signal = pyqtSignal(dict)
@@ -38,20 +37,15 @@ class InventoryView(QMainWindow):
     delete_supplier_signal = pyqtSignal(int)
     place_order_signal = pyqtSignal(dict)
     refresh_activity_log_signal = pyqtSignal()
-    damage_report_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, reason
-    stock_issuance_signal = pyqtSignal(int, str, int, str)  # item_id, item_name, quantity, notes
+    activity_log_page_signal = pyqtSignal(int)
+    damage_report_signal = pyqtSignal(int, str, int, str)
+    stock_issuance_signal = pyqtSignal(int, str, int, str)
+    generate_report_signal = pyqtSignal()
 
-    def __init__(self, user_role="staff", username="User", db_config=None, order_controller=None):
+    def __init__(self, user_role="staff", username="User", order_controller=None):
         super().__init__()
         self.user_role = user_role
         self.username = username
-        self.db_config = db_config or {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': '',
-            'port': 3308
-        }
         self.order_controller = order_controller
         self.setWindowTitle("Inventoria")
         self.setGeometry(60, 60, 1280, 800)
@@ -59,9 +53,6 @@ class InventoryView(QMainWindow):
         self.setup_theme()
         self.setup_ui()
 
-    # ---------------------------------------------------------
-    # THEME
-    # ---------------------------------------------------------
     def setup_theme(self):
         self.setStyleSheet("""
             QMainWindow  { background:#F1F5F9; }
@@ -155,9 +146,7 @@ class InventoryView(QMainWindow):
             QTabBar::tab { background:transparent; color:transparent;
                            border:none; padding:0; margin:0; width:0; height:0; }
         """)
-    # ---------------------------------------------------------
-    # MAIN UI
-    # ---------------------------------------------------------
+
     def setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
@@ -179,36 +168,43 @@ class InventoryView(QMainWindow):
         idx = 0
 
         self.stack.addWidget(self._create_inventory_tab())
-        self._pages["Inventory"] = idx; idx += 1
-
-        self.stack.addWidget(self._create_low_stock_tab())
-        self._pages["Low Stock"] = idx; idx += 1
+        self._pages["Inventory"] = idx
+        idx += 1
 
         if self.user_role == "admin":
             self.stack.addWidget(self._create_stats_tab())
-            self._pages["Statistics"] = idx; idx += 1
+            self._pages["Dashboard"] = idx
+            idx += 1
 
         self.stack.addWidget(self._create_suppliers_tab())
-        self._pages["Suppliers"] = idx; idx += 1
+        self._pages["Suppliers"] = idx
+        idx += 1
 
         if self.user_role == "admin":
             self.stack.addWidget(self._create_approvals_tab())
-            self._pages["Activity Log"] = idx; idx += 1
+            self._pages["Activity Log"] = idx
+            idx += 1
 
         if self.user_role == "staff":
             from view.damage_report_view import create_damage_report_tab
             self.stack.addWidget(create_damage_report_tab(self))
-            self._pages["Damage Report"] = idx; idx += 1
+            self._pages["Damage Report"] = idx
+            idx += 1
 
         if self.user_role == "staff":
             from view.stock_issuance_view import create_stock_issuance_tab
             self.stack.addWidget(create_stock_issuance_tab(self))
-            self._pages["Stock Issuance"] = idx; idx += 1
+            self._pages["Stock Issuance"] = idx
+            idx += 1
+
+        if self.user_role == "staff":
+            self.stack.addWidget(self._create_my_requests_tab())
+            self._pages["My Requests"] = idx
+            idx += 1
 
         rl.addWidget(self.stack)
         root.addWidget(right, 1)
 
-        # Hidden QTabWidget kept for kpi_controller.set_tabs() compatibility
         self.tabs = QTabWidget()
         self.tabs.setVisible(False)
         for name in self._pages:
@@ -219,11 +215,7 @@ class InventoryView(QMainWindow):
         self._connect_nav()
         self._set_btn_icons()
 
-    # ---------------------------------------------------------
-    # BUTTON ICONS
-    # ---------------------------------------------------------
     def _set_btn_icons(self):
-        """Assign QStyle standard icons to all action buttons after UI is built."""
         SP = QStyle.StandardPixmap
         si = self.style().standardIcon
         sz = QSize(16, 16)
@@ -245,9 +237,6 @@ class InventoryView(QMainWindow):
                     btn.setIcon(icon)
                     btn.setIconSize(sz)
 
-    # ---------------------------------------------------------
-    # SIDEBAR
-    # ---------------------------------------------------------
     def _create_sidebar(self):
         sb = QWidget()
         sb.setObjectName("sidebar")
@@ -256,8 +245,6 @@ class InventoryView(QMainWindow):
         lay.setContentsMargins(14, 26, 14, 18)
         lay.setSpacing(0)
 
-        # Logo
-        # ── Logo block — centered, prominent ───────────────
         logo_col = QVBoxLayout()
         logo_col.setSpacing(8)
         logo_col.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -277,20 +264,12 @@ class InventoryView(QMainWindow):
             if os.path.exists(_p):
                 _pix = QPixmap(_p)
                 if not _pix.isNull():
-                    icon_lbl.setPixmap(_pix.scaled(
-                        72, 72,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation
-                    ))
+                    icon_lbl.setPixmap(_pix.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
                     _logo_loaded = True
                     break
         if not _logo_loaded:
             icon_lbl.setText("INV")
-            icon_lbl.setStyleSheet(
-                "background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-                "stop:0 #818CF8,stop:1 #6366F1);"
-                "border-radius:16px;font-size:18px;font-weight:700;color:#fff;"
-            )
+            icon_lbl.setStyleSheet("background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #818CF8,stop:1 #6366F1);border-radius:16px;font-size:18px;font-weight:700;color:#fff;")
         else:
             icon_lbl.setStyleSheet("border-radius:12px;")
 
@@ -307,23 +286,15 @@ class InventoryView(QMainWindow):
         lay.addLayout(logo_col)
         lay.addSpacing(16)
 
-        # User card
         uc = QWidget()
-        uc.setStyleSheet(
-            "QWidget{background:rgba(255,255,255,0.04);"
-            "border:1px solid rgba(255,255,255,0.07);border-radius:12px;}"
-        )
+        uc.setStyleSheet("QWidget{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;}")
         uc_lay = QHBoxLayout(uc)
         uc_lay.setContentsMargins(10, 10, 10, 10)
         uc_lay.setSpacing(10)
         av = QLabel(self.username[0].upper())
         av.setFixedSize(34, 34)
         av.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        av.setStyleSheet(
-            "background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-            "stop:0 #818CF8,stop:1 #6366F1);"
-            "border-radius:17px;font-size:14px;font-weight:700;color:#fff;"
-        )
+        av.setStyleSheet("background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #818CF8,stop:1 #6366F1);border-radius:17px;font-size:14px;font-weight:700;color:#fff;")
         ui_w = QWidget()
         ui_w.setStyleSheet("background:transparent;")
         ui_col = QVBoxLayout(ui_w)
@@ -341,13 +312,11 @@ class InventoryView(QMainWindow):
         lay.addWidget(uc)
         lay.addSpacing(22)
 
-        # Section label
         sec = QLabel("MAIN MENU")
         sec.setStyleSheet("font-size:10px;font-weight:700;color:#374151;letter-spacing:1.2px;background:transparent;padding:0 8px;")
         lay.addWidget(sec)
         lay.addSpacing(6)
 
-        # Nav buttons
         nav_items = self._nav_items()
         self._nav_btns = {}
         for sp_name, label in nav_items:
@@ -366,26 +335,23 @@ class InventoryView(QMainWindow):
 
         lay.addStretch()
 
-        # Divider
         div = QFrame()
         div.setFrameShape(QFrame.Shape.HLine)
         div.setStyleSheet("background:rgba(255,255,255,0.06);border:none;max-height:1px;")
         lay.addWidget(div)
         lay.addSpacing(8)
 
-        # Report
-        self.report_btn = QPushButton("  Generate Report")
+        self.report_btn = QPushButton("Generate Report")
         self.report_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.report_btn.setIconSize(QSize(16, 16))
         self.report_btn.setObjectName("nav_btn")
         self.report_btn.setFixedHeight(40)
         self.report_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.report_btn.clicked.connect(self._on_generate_report_clicked)
+        self.report_btn.clicked.connect(self.generate_report_signal.emit)
         lay.addWidget(self.report_btn)
         lay.addSpacing(2)
 
-        # Logout
-        self.logout_btn = QPushButton("  Logout")
+        self.logout_btn = QPushButton(" Logout")
         self.logout_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
         self.logout_btn.setIconSize(QSize(16, 16))
         self.logout_btn.setObjectName("nav_logout")
@@ -396,15 +362,16 @@ class InventoryView(QMainWindow):
         return sb
 
     def _nav_items(self):
-        items = [("SP_FileIcon", "Inventory"), ("SP_MessageBoxWarning", "Low Stock")]
+        items = [("SP_FileIcon", "Inventory")]
         if self.user_role == "admin":
-            items.append(("SP_FileDialogInfoView", "Statistics"))
+            items.append(("SP_FileDialogInfoView", "Dashboard"))
         items.append(("SP_DriveNetIcon", "Suppliers"))
         if self.user_role == "admin":
             items.append(("SP_FileDialogDetailedView", "Activity Log"))
         if self.user_role == "staff":
             items.append(("SP_MessageBoxCritical", "Damage Report"))
             items.append(("SP_ArrowUp", "Stock Issuance"))
+            items.append(("SP_FileDialogDetailedView", "My Requests"))
         return items
 
     def _connect_nav(self):
@@ -417,7 +384,6 @@ class InventoryView(QMainWindow):
                 self.tabs.setCurrentIndex(self._pages[label])
                 if hasattr(self, '_topbar_title'):
                     self._topbar_title.setText(label)
-                # Auto-refresh when navigating to Activity Log
                 if label == "Activity Log":
                     self.refresh_approvals_signal.emit()
                     self.refresh_activity_log_signal.emit()
@@ -427,11 +393,8 @@ class InventoryView(QMainWindow):
         first = list(self._nav_btns.keys())[0]
         self._nav_btns[first].setChecked(True)
 
-        # Sync stack when KPI dashboard cards change self.tabs index
-        # This allows kpi_dashboard card clicks to navigate the sidebar stack
         def _on_tabs_changed(index):
             self.stack.setCurrentIndex(index)
-            # Sync sidebar button highlight
             for label, idx in self._pages.items():
                 if idx == index:
                     for b in self._nav_btns.values():
@@ -443,9 +406,6 @@ class InventoryView(QMainWindow):
                     break
         self.tabs.currentChanged.connect(_on_tabs_changed)
 
-    # ---------------------------------------------------------
-    # TOPBAR
-    # ---------------------------------------------------------
     def _create_topbar(self):
         tb = QWidget()
         tb.setObjectName("topbar")
@@ -455,9 +415,7 @@ class InventoryView(QMainWindow):
         lay.setSpacing(12)
 
         self._topbar_title = QLabel("Inventory")
-        self._topbar_title.setStyleSheet(
-            "font-size:16px;font-weight:700;color:#0F172A;background:transparent;"
-        )
+        self._topbar_title.setStyleSheet("font-size:16px;font-weight:700;color:#0F172A;background:transparent;")
         self._topbar_title.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(self._topbar_title)
         lay.addStretch()
@@ -480,17 +438,13 @@ class InventoryView(QMainWindow):
             lay.addWidget(self.create_user_btn)
 
         return tb
-    # _create_header removed — replaced by _create_sidebar + _create_topbar
-    # ---------------------------------------------------------
-    # INVENTORY TAB
-    # ---------------------------------------------------------
+
     def _create_inventory_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(16)
 
-        # Search card
         sc = QWidget()
         sc.setStyleSheet("QWidget{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;}")
         sc_lay = QHBoxLayout(sc)
@@ -512,37 +466,31 @@ class InventoryView(QMainWindow):
         sc_lay.addWidget(self.category_filter)
         layout.addWidget(sc)
 
-        # Table - FIXED: Remove Actions column for admin
         self.inventory_table = QTableWidget()
         if self.user_role == "admin":
-            # Admin: 8 columns (without Actions)
             self.inventory_table.setColumnCount(8)
             self.inventory_table.setHorizontalHeaderLabels([
                 "Item Name", "Category", "Quantity", "Min Stock",
                 "Unit Price", "Total Value", "Supplier", "Status"
             ])
         else:
-            # Staff: 9 columns (with Actions for requesting stock)
             self.inventory_table.setColumnCount(9)
             self.inventory_table.setHorizontalHeaderLabels([
                 "Item Name", "Category", "Quantity", "Min Stock",
                 "Unit Price", "Total Value", "Supplier", "Status", "Actions"
             ])
 
-        # MAKE TABLE READ-ONLY
         self.inventory_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.inventory_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.inventory_table.setAlternatingRowColors(True)
         self.inventory_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         layout.addWidget(self.inventory_table)
 
-        # Buttons - Role-based access control
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
         button_layout.setContentsMargins(0, 4, 0, 0)
 
         if self.user_role == "admin":
-            # ADMIN: Full control - Add, Edit, Delete, Adjust Stock
             add_btn = QPushButton(" Add Item")
             add_btn.setObjectName("add_btn")
             edit_btn = QPushButton(" Edit Item")
@@ -562,77 +510,38 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(delete_btn)
             button_layout.addWidget(adjust_btn)
         else:
-            pass  # Staff: no inventory buttons
+            request_btn = QPushButton(" Request Stock")
+            request_btn.setObjectName("request_btn")
+            request_btn.clicked.connect(self._on_request_stock_clicked)
+            button_layout.addWidget(request_btn)
 
         button_layout.addStretch()
-
         layout.addLayout(button_layout)
         return tab
 
-    # ---------------------------------------------------------
-    # LOW STOCK TAB
-    # ---------------------------------------------------------
-    def _create_low_stock_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(16)
-
-        label = QLabel("LOW STOCK ALERTS")
-        label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        label.setStyleSheet("padding: 10px; color: #ff6600;")
-        layout.addWidget(label)
-
-        self.low_stock_table = QTableWidget()
-        self.low_stock_table.setColumnCount(5)
-        self.low_stock_table.setHorizontalHeaderLabels([
-            "Item Name", "Category", "Current Stock", "Min Stock", "Shortage"
-        ])
-
-        # MAKE TABLE READ-ONLY
-        self.low_stock_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.low_stock_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.low_stock_table.setAlternatingRowColors(True)
-        layout.addWidget(self.low_stock_table)
-
-        refresh_btn = QPushButton(" Refresh")
-        refresh_btn.setObjectName("refresh_btn")
-        refresh_btn.clicked.connect(self.refresh_low_stock_signal.emit)
-        layout.addWidget(refresh_btn)
-        return tab
-
-    # ---------------------------------------------------------
-    # STATISTICS TAB
-    # ---------------------------------------------------------
     def _create_stats_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
 
-        label = QLabel("Inventory Statistics")
-        label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        label.setStyleSheet("padding: 10px; color: #2C3E50;")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label = QLabel("Dashboard")
+        label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        label.setStyleSheet("color: #0F172A; padding-bottom: 4px;")
         layout.addWidget(label)
 
-        # Add KPI Dashboard
         self.kpi_dashboard = KPIDashboard(tab)
         layout.addWidget(self.kpi_dashboard)
 
-        # Keep old stats label for compatibility (hidden by default)
         self.stats_label = QLabel()
         self.stats_label.setWordWrap(True)
         self.stats_label.setStyleSheet("padding: 20px; font-size: 13px;")
-        self.stats_label.setVisible(False)  # Hidden, KPI dashboard replaces it
+        self.stats_label.setVisible(False)
         layout.addWidget(self.stats_label)
 
         layout.addStretch()
         return tab
 
-    # ---------------------------------------------------------
-    # SUPPLIERS TAB
-    # ---------------------------------------------------------
     def _create_suppliers_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -644,13 +553,11 @@ class InventoryView(QMainWindow):
         label.setStyleSheet("padding: 10px; color: #2C3E50;")
         layout.addWidget(label)
 
-        # Supplier buttons - Role-based access control
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
         button_layout.setContentsMargins(0, 4, 0, 0)
 
         if self.user_role == "admin":
-            # ADMIN: Full supplier management
             add_supplier_btn = QPushButton(" Add Supplier")
             add_supplier_btn.setObjectName("add_btn")
             edit_supplier_btn = QPushButton(" Edit Supplier")
@@ -674,7 +581,6 @@ class InventoryView(QMainWindow):
             button_layout.addWidget(place_order_btn)
             button_layout.addWidget(view_orders_btn)
         else:
-            # STAFF: Can place orders and view them (no supplier management)
             place_order_btn = QPushButton(" Place Order")
             place_order_btn.setObjectName("order_btn")
             view_orders_btn = QPushButton(" View Orders")
@@ -689,7 +595,6 @@ class InventoryView(QMainWindow):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-        # Suppliers table
         self.suppliers_table = QTableWidget()
         self.suppliers_table.setColumnCount(8)
         self.suppliers_table.setHorizontalHeaderLabels([
@@ -697,29 +602,22 @@ class InventoryView(QMainWindow):
             "Address", "Status", "Items Supplied", "ID"
         ])
 
-        # MAKE TABLE READ-ONLY
         self.suppliers_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.suppliers_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.suppliers_table.setAlternatingRowColors(True)
         self.suppliers_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-
-        # Hide the ID column
         self.suppliers_table.setColumnHidden(7, True)
 
         layout.addWidget(self.suppliers_table)
 
         return tab
 
-    # ---------------------------------------------------------
-    # ACTIVITY LOG TAB (Admin Only) - Shows all staff requests
-    # ---------------------------------------------------------
     def _create_approvals_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(16)
 
-        # ── Stock Requests Section ──────────────────────────────
         label = QLabel("Stock Requests")
         label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         label.setStyleSheet("padding: 10px; color: #27AE60;")
@@ -733,8 +631,6 @@ class InventoryView(QMainWindow):
         ])
         self.approvals_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.approvals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self.approvals_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.approvals_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.approvals_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         self.approvals_table.horizontalHeader().setSectionResizeMode(9, QHeaderView.ResizeMode.Fixed)
         self.approvals_table.setColumnWidth(9, 180)
@@ -747,7 +643,6 @@ class InventoryView(QMainWindow):
         refresh_btn.clicked.connect(self.refresh_approvals_signal.emit)
         layout.addWidget(refresh_btn)
 
-        # ── Activity Log Section ────────────────────────────────
         activity_label = QLabel("Activity Log — Who Did What & When")
         activity_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         activity_label.setStyleSheet("padding: 10px; color: #2980B9; margin-top: 10px;")
@@ -770,22 +665,80 @@ class InventoryView(QMainWindow):
         self.activity_log_table.setAlternatingRowColors(True)
         layout.addWidget(self.activity_log_table)
 
+        pagination_layout = QHBoxLayout()
+        pagination_layout.setSpacing(8)
+
+        self.activity_prev_btn = QPushButton("Previous")
+        self.activity_prev_btn.setObjectName("refresh_btn")
+        self.activity_prev_btn.setFixedWidth(90)
+        self.activity_prev_btn.clicked.connect(self._on_activity_prev_clicked)
+
+        self.activity_page_label = QLabel("Page 1")
+        self.activity_page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.activity_page_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #0F172A;")
+        self.activity_page_label.setFixedWidth(100)
+
+        self.activity_next_btn = QPushButton("Next")
+        self.activity_next_btn.setObjectName("refresh_btn")
+        self.activity_next_btn.setFixedWidth(90)
+        self.activity_next_btn.clicked.connect(self._on_activity_next_clicked)
+
         refresh_activity_btn = QPushButton(" Refresh Activity Log")
         refresh_activity_btn.clicked.connect(self.refresh_activity_log_signal.emit)
-        layout.addWidget(refresh_activity_btn)
+
+        pagination_layout.addWidget(self.activity_prev_btn)
+        pagination_layout.addWidget(self.activity_page_label)
+        pagination_layout.addWidget(self.activity_next_btn)
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(refresh_activity_btn)
+        layout.addLayout(pagination_layout)
 
         return tab
 
-    # ---------------------------------------------------------
-    # TABLE POPULATION
-    # ---------------------------------------------------------
+    def _create_my_requests_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
+
+        label = QLabel("My Stock Requests")
+        label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        label.setStyleSheet("padding: 10px; color: #2C3E50;")
+        layout.addWidget(label)
+
+        desc = QLabel("Track the status of your stock requests. Check here to see if admin approved or rejected your request.")
+        desc.setStyleSheet("color: #666; padding: 0 10px 10px 10px;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        self.my_requests_table = QTableWidget()
+        self.my_requests_table.setColumnCount(7)
+        self.my_requests_table.setHorizontalHeaderLabels([
+            "Date", "Item", "Category", "Current Qty", "Requested Qty", "Reason", "Status"
+        ])
+        self.my_requests_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.my_requests_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.my_requests_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self.my_requests_table.setAlternatingRowColors(True)
+        self.my_requests_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.my_requests_table.setWordWrap(True)
+        layout.addWidget(self.my_requests_table)
+
+        refresh_btn = QPushButton("Refresh My Requests")
+        refresh_btn.setObjectName("refresh_btn")
+        refresh_btn.clicked.connect(self.my_requests_signal.emit)
+        layout.addWidget(refresh_btn)
+
+        return tab
+
+    # ==================== TABLE POPULATION METHODS ====================
+
     def populate_inventory_table(self, items):
         self.inventory_table.setRowCount(0)
         for item in items:
             row = self.inventory_table.rowCount()
             self.inventory_table.insertRow(row)
 
-            # Common columns (0-6)
             name_item = QTableWidgetItem(item.name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.inventory_table.setItem(row, 0, name_item)
@@ -793,10 +746,6 @@ class InventoryView(QMainWindow):
             category_item = QTableWidgetItem(item.category)
             category_item.setFlags(category_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             category_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            _cc={"Linens":("#EEF2FF","#3730A3"),"Toiletries":("#FDF4FF","#7E22CE"),"Cleaning":("#F0FDFA","#134E4A"),"Kitchen":("#FFF7ED","#9A3412"),"Furniture":("#F0F9FF","#0C4A6E"),"Electronics":("#FFFBEB","#92400E"),"Other":("#F9FAFB","#374151")}
-            if item.category in _cc:
-                category_item.setBackground(QColor(_cc[item.category][0]))
-                category_item.setForeground(QColor(_cc[item.category][1]))
             self.inventory_table.setItem(row, 1, category_item)
 
             qty_item = QTableWidgetItem(str(item.quantity))
@@ -819,7 +768,6 @@ class InventoryView(QMainWindow):
             supplier_item.setFlags(supplier_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.inventory_table.setItem(row, 6, supplier_item)
 
-            # Status column — color pill
             status = "LOW STOCK" if item.is_low_stock else "OK"
             status_item = QTableWidgetItem(status)
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -832,38 +780,26 @@ class InventoryView(QMainWindow):
                 status_item.setBackground(QColor("#DCFCE7"))
 
             if self.user_role == "admin":
-                # Admin: Status at column 7, no Actions column
                 self.inventory_table.setItem(row, 7, status_item)
             else:
-                # Staff: Status at column 7, Actions at column 8
                 self.inventory_table.setItem(row, 7, status_item)
 
-                # Actions column - only for staff (Request button)
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
-
-                # Set margins to provide padding inside the cell
                 actions_layout.setContentsMargins(12, 4, 12, 4)
                 actions_layout.setSpacing(0)
-
-                # FIX: Center the button so it doesn't stretch to the cell edges
                 actions_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
                 request_btn = QPushButton("Request")
                 request_btn.setObjectName("request_btn")
-
-                # FIX: Set a fixed size for a consistent "pill" look
                 request_btn.setFixedSize(100, 32)
-
                 request_btn.clicked.connect(lambda checked, r=row: self._on_request_stock_row(r))
                 actions_layout.addWidget(request_btn)
-
                 actions_layout.addStretch()
                 self.inventory_table.setRowHeight(row, 40)
                 self.inventory_table.setCellWidget(row, 8, actions_widget)
                 self.inventory_table.setColumnWidth(8, 120)
 
-            # Highlight low stock rows
             if item.is_low_stock:
                 if self.user_role == "admin":
                     for col in range(8):
@@ -877,6 +813,8 @@ class InventoryView(QMainWindow):
                             table_item.setBackground(QColor(255, 252, 252))
 
     def populate_low_stock_table(self, items):
+        if not hasattr(self, 'low_stock_table'):
+            return
         self.low_stock_table.setRowCount(0)
         for item in items:
             row = self.low_stock_table.rowCount()
@@ -903,22 +841,17 @@ class InventoryView(QMainWindow):
             self.low_stock_table.setItem(row, 4, shortage_item)
 
     def populate_suppliers_table(self, suppliers):
-        """Populate suppliers table with data"""
         self.suppliers_table.setRowCount(0)
-
         if suppliers is None:
             return
-
         for supplier in suppliers:
             row = self.suppliers_table.rowCount()
             self.suppliers_table.insertRow(row)
 
-            # Store supplier ID in hidden column
             id_item = QTableWidgetItem(str(supplier.id))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.suppliers_table.setItem(row, 7, id_item)
 
-            # Visible columns
             name_item = QTableWidgetItem(supplier.name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.suppliers_table.setItem(row, 0, name_item)
@@ -940,7 +873,6 @@ class InventoryView(QMainWindow):
                 address_display = address_text[:50] + "..."
             else:
                 address_display = address_text
-
             address_item = QTableWidgetItem(address_display)
             address_item.setFlags(address_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             address_item.setToolTip(address_text)
@@ -959,75 +891,60 @@ class InventoryView(QMainWindow):
 
             items_text = f"{supplier.items_supplied_count} item(s)"
             if supplier.items_list:
-                items_text = f"{supplier.items_supplied_count} item(s)\n{supplier.items_list[:50]}..."
+                items_text += f"\n{supplier.items_list[:50]}..."
             items_item = QTableWidgetItem(items_text)
             items_item.setFlags(items_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             items_item.setToolTip(supplier.items_list if supplier.items_list else "No items")
             self.suppliers_table.setItem(row, 6, items_item)
 
     def populate_approvals_table(self, approvals):
-        """Populate Activity Log table with staff requests"""
-        # FIXED: Only update approvals if the table exists (admin only)
         if not hasattr(self, 'approvals_table'):
             return
-
         self.approvals_table.setRowCount(0)
-
         if approvals is None:
             return
-
         for approval in approvals:
             row = self.approvals_table.rowCount()
             self.approvals_table.insertRow(row)
             self.approvals_table.setRowHeight(row, 38)
 
-            # Column 0: Request ID
             id_item = QTableWidgetItem(str(approval.id))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 0, id_item)
 
-            # Column 1: Date (formatted)
-            date_item = QTableWidgetItem(approval.request_date)
+            date_str = str(approval.request_date) if approval.request_date else ''
+            date_item = QTableWidgetItem(date_str)
             date_item.setFlags(date_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 1, date_item)
 
-            # Column 2: Staff Name
             staff_item = QTableWidgetItem(approval.requested_by)
             staff_item.setFlags(staff_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 2, staff_item)
 
-            # Column 3: Item Name
             name_item = QTableWidgetItem(approval.item_name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 3, name_item)
 
-            # Column 4: Category
             category_item = QTableWidgetItem(approval.item_category)
             category_item.setFlags(category_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 4, category_item)
 
-            # Column 5: Current Quantity
             current_qty_item = QTableWidgetItem(str(approval.current_quantity))
             current_qty_item.setFlags(current_qty_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 5, current_qty_item)
 
-            # Column 6: Requested Quantity
             requested_qty_item = QTableWidgetItem(str(approval.requested_quantity))
             requested_qty_item.setFlags(requested_qty_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.approvals_table.setItem(row, 6, requested_qty_item)
 
-            # Column 7: Reason
             reason_text = approval.reason[:50] + "..." if len(approval.reason) > 50 else approval.reason
             reason_item = QTableWidgetItem(reason_text)
             reason_item.setFlags(reason_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             reason_item.setToolTip(approval.reason)
             self.approvals_table.setItem(row, 7, reason_item)
 
-            # Column 8: Status with color coding
             status_item = QTableWidgetItem(approval.status.upper())
             status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-
-            # Color code the status
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if approval.status == 'pending':
                 status_item.setForeground(QColor('#92400E'))
@@ -1038,17 +955,14 @@ class InventoryView(QMainWindow):
             elif approval.status == 'rejected':
                 status_item.setForeground(QColor('#991B1B'))
                 status_item.setBackground(QColor('#FEE2E2'))
-
             self.approvals_table.setItem(row, 8, status_item)
 
-            # Column 9: Actions - Show buttons ONLY for pending requests
             actions_widget = QWidget()
             actions_layout = QHBoxLayout(actions_widget)
             actions_layout.setContentsMargins(2, 1, 2, 1)
             actions_layout.setSpacing(3)
 
             if approval.status == 'pending':
-                # Show Approve/Reject buttons for pending requests
                 approve_btn = QPushButton("Approve")
                 approve_btn.setObjectName("approve_btn")
                 approve_btn.setFixedSize(75, 28)
@@ -1062,14 +976,14 @@ class InventoryView(QMainWindow):
                 actions_layout.addWidget(approve_btn)
                 actions_layout.addWidget(reject_btn)
             else:
-                # Show who processed it and when
                 if approval.approved_by:
                     processed_label = QLabel(f"By: {approval.approved_by}")
                     processed_label.setStyleSheet("font-size: 10px; color: #666;")
                     actions_layout.addWidget(processed_label)
 
                 if approval.approval_date:
-                    date_label = QLabel(f"{approval.approval_date}")
+                    date_str = str(approval.approval_date) if approval.approval_date else ''
+                    date_label = QLabel(date_str)
                     date_label.setStyleSheet("font-size: 9px; color: #888;")
                     actions_layout.addWidget(date_label)
 
@@ -1077,16 +991,12 @@ class InventoryView(QMainWindow):
             self.approvals_table.setCellWidget(row, 9, actions_widget)
 
     def populate_activity_log(self, logs):
-        """Populate the real activity log table"""
         if not hasattr(self, 'activity_log_table'):
             return
-
         self.activity_log_table.setRowCount(0)
-
         if not logs:
             return
 
-        # Action color map
         action_colors = {
             "Added Item":             "#27AE60",
             "Edited Item":            "#2980B9",
@@ -1104,18 +1014,15 @@ class InventoryView(QMainWindow):
             row = self.activity_log_table.rowCount()
             self.activity_log_table.insertRow(row)
 
-            # Timestamp
             ts = str(log.get('timestamp', ''))
             ts_item = QTableWidgetItem(ts)
             ts_item.setForeground(QColor("#555555"))
             self.activity_log_table.setItem(row, 0, ts_item)
 
-            # User
             user_item = QTableWidgetItem(log.get('username', ''))
             user_item.setFont(QFont("Arial", 9, QFont.Weight.Bold))
             self.activity_log_table.setItem(row, 1, user_item)
 
-            # Action
             action = log.get('action', '')
             action_item = QTableWidgetItem(action)
             color = action_colors.get(action, "#2C3E50")
@@ -1123,22 +1030,51 @@ class InventoryView(QMainWindow):
             action_item.setFont(QFont("Arial", 9, QFont.Weight.Bold))
             self.activity_log_table.setItem(row, 2, action_item)
 
-            # Details — full text visible with word wrap
             details = log.get('details', '')
             details_item = QTableWidgetItem(details)
             details_item.setToolTip(details)
             details_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.activity_log_table.setItem(row, 3, details_item)
 
-    # ---------------------------------------------------------
-    # STATISTICS DISPLAY
-    # ---------------------------------------------------------
+    def populate_my_requests_table(self, requests):
+        if not hasattr(self, 'my_requests_table'):
+            return
+        self.my_requests_table.setRowCount(0)
+        if not requests:
+            return
+        for req in requests:
+            row = self.my_requests_table.rowCount()
+            self.my_requests_table.insertRow(row)
+            self.my_requests_table.setRowHeight(row, 38)
+
+            self.my_requests_table.setItem(row, 0, QTableWidgetItem(str(req.request_date)))
+            self.my_requests_table.setItem(row, 1, QTableWidgetItem(req.item_name))
+            self.my_requests_table.setItem(row, 2, QTableWidgetItem(req.item_category))
+            self.my_requests_table.setItem(row, 3, QTableWidgetItem(str(req.current_quantity)))
+            self.my_requests_table.setItem(row, 4, QTableWidgetItem(str(req.requested_quantity)))
+
+            reason_item = QTableWidgetItem(req.reason)
+            reason_item.setToolTip(req.reason)
+            self.my_requests_table.setItem(row, 5, reason_item)
+
+            status_item = QTableWidgetItem(req.status.upper())
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if req.status == 'approved':
+                status_item.setForeground(QColor('#166534'))
+                status_item.setBackground(QColor('#DCFCE7'))
+            elif req.status == 'rejected':
+                status_item.setForeground(QColor('#991B1B'))
+                status_item.setBackground(QColor('#FEE2E2'))
+            else:
+                status_item.setForeground(QColor('#92400E'))
+                status_item.setBackground(QColor('#FEF3C7'))
+            self.my_requests_table.setItem(row, 6, status_item)
+
+    # ==================== DISPLAY METHODS ====================
+
     def display_statistics(self, stats):
-        # Update KPI dashboard if it exists (admin only)
         if hasattr(self, 'kpi_dashboard'):
             self.kpi_dashboard.update_kpis(stats)
-
-        # Keep old stats label updated for compatibility
         if hasattr(self, 'stats_label'):
             stats_text = f"""
             <h3>Overall Statistics</h3>
@@ -1151,9 +1087,13 @@ class InventoryView(QMainWindow):
                 stats_text += f"<p><b>{cat}:</b> {count} items</p>"
             self.stats_label.setText(stats_text)
 
-    # ---------------------------------------------------------
-    # SIGNAL HELPERS
-    # ---------------------------------------------------------
+    def update_activity_log_pagination(self, current_page, total_pages):
+        self.activity_page_label.setText(f"Page {current_page} of {total_pages}")
+        self.activity_prev_btn.setEnabled(current_page > 1)
+        self.activity_next_btn.setEnabled(current_page < total_pages)
+
+    # ==================== GETTER METHODS ====================
+
     def get_search_text(self):
         return self.search_input.text()
 
@@ -1166,11 +1106,10 @@ class InventoryView(QMainWindow):
     def get_user_role(self):
         return self.user_role
 
-    # ---------------------------------------------------------
-    # BUTTON HANDLERS
-    # ---------------------------------------------------------
+    # ==================== BUTTON HANDLERS ====================
+
     def _on_add_item_clicked(self):
-        from .dialogs import InventoryDialog
+        from view.dialogs import InventoryDialog
         dlg = InventoryDialog(self)
         if dlg.exec():
             self.add_item_signal.emit(dlg.get_data())
@@ -1178,21 +1117,18 @@ class InventoryView(QMainWindow):
     def _on_edit_item_clicked(self):
         row = self.inventory_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select an item to edit.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select an item to edit.", "warning")
             return
         item_name = self.inventory_table.item(row, 0).text()
-
-        supplier_col = 6
         item_data = {
             'name': item_name,
             'category': self.inventory_table.item(row, 1).text(),
-            'quantity': int(self.inventory_table.item(row, 2).text()),
-            'min_stock': int(self.inventory_table.item(row, 3).text()),
-            'unit_price': float(self.inventory_table.item(row, 4).text().replace('PHP', '').replace('₱', '').strip()),
-            'supplier': self.inventory_table.item(row, supplier_col).text()
+            'quantity': self.inventory_table.item(row, 2).text(),
+            'min_stock': self.inventory_table.item(row, 3).text(),
+            'unit_price': self.inventory_table.item(row, 4).text(),
+            'supplier': self.inventory_table.item(row, 6).text()
         }
-
-        from .dialogs import InventoryDialog
+        from view.dialogs import InventoryDialog
         dlg = InventoryDialog(self, item_data)
         if dlg.exec():
             self.edit_item_signal.emit(item_name, dlg.get_data())
@@ -1200,7 +1136,7 @@ class InventoryView(QMainWindow):
     def _on_delete_item_clicked(self):
         row = self.inventory_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select an item to delete.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select an item to delete.", "warning")
             return
         item_name = self.inventory_table.item(row, 0).text()
         self.delete_item_signal.emit(item_name)
@@ -1208,113 +1144,62 @@ class InventoryView(QMainWindow):
     def _on_adjust_stock_clicked(self):
         row = self.inventory_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select an item to adjust stock.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select an item to adjust stock.", "warning")
             return
         item_name = self.inventory_table.item(row, 0).text()
         qty = int(self.inventory_table.item(row, 2).text())
-        from .dialogs import StockAdjustmentDialog
+        from view.dialogs import StockAdjustmentDialog
         dlg = StockAdjustmentDialog(self, item_name, qty)
         if dlg.exec():
             self.adjust_stock_signal.emit(item_name, dlg.get_adjustment())
 
     def _on_request_stock_clicked(self):
-        """Handle request stock button click from main button (staff only)"""
-        if self.user_role != "staff":
-            self.show_message("Error", "Only staff can request stock.", QMessageBox.Icon.Warning)
-            return
-
         row = self.inventory_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select an item to request stock.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select an item to request stock.", "warning")
             return
         self._on_request_stock_row(row)
 
     def _on_request_stock_row(self, row):
-        """Handle request stock from table row (staff only)"""
-        if self.user_role != "staff":
-            return
-
         item_name = self.inventory_table.item(row, 0).text()
         current_qty = int(self.inventory_table.item(row, 2).text())
-
-        try:
-            from view.supplier_views import StockRequestDialog
-            dlg = StockRequestDialog(self, item_name, current_qty)
-            if dlg.exec():
-                quantity = dlg.get_quantity()
-                reason = dlg.get_reason()
-                # Emit signal to controller
-                self.request_stock_signal.emit(item_name, quantity, reason)
-        except ImportError:
-            self.show_message("Error", "Stock request dialog not available.", QMessageBox.Icon.Critical)
+        from view.supplier_views import StockRequestDialog
+        dlg = StockRequestDialog(self, item_name, current_qty)
+        if dlg.exec():
+            self.request_stock_signal.emit(item_name, dlg.get_quantity(), dlg.get_reason())
 
     def _on_approve_request(self, request_id, approve):
-        """Handle approve/reject request from approvals table (admin only)"""
-        action = "approve" if approve else "reject"
-
-        # Get notes from user
         notes, ok = QInputDialog.getText(
             self,
-            f"{action.capitalize()} Request",
-            f"Enter notes for {action} (optional):",
+            "Request Action",
+            "Enter notes (optional):",
             QLineEdit.EchoMode.Normal,
             ""
         )
-
-        if ok or True:  # Allow empty notes
-            # Emit signal to controller
+        if ok:
             self.approve_request_signal.emit(request_id, approve, notes)
 
-    def _on_generate_report_clicked(self):
-        """Handle report generation button click"""
-        db_config = {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': '',
-            'port': 3308
-        }
-        try:
-            from .report_generator import ReportDialog
-            dlg = ReportDialog(self, db_config)
-            dlg.exec()
-        except ImportError as e:
-            self.show_message("Error", f"Report module not available: {str(e)}", QMessageBox.Icon.Critical)
-        except Exception as e:
-            self.show_message("Error", f"Failed to generate report: {str(e)}", QMessageBox.Icon.Critical)
-
     def _on_add_supplier_clicked(self):
-        """Handle add supplier button click"""
-        try:
-            from view.supplier_views import SupplierDialog
-            dlg = SupplierDialog(self)
-            if dlg.exec():
-                self.add_supplier_signal.emit(dlg.get_data())
-        except ImportError:
-            self.show_message("Error", "Supplier module not available.", QMessageBox.Icon.Critical)
+        from view.supplier_views import SupplierDialog
+        dlg = SupplierDialog(self)
+        if dlg.exec():
+            self.add_supplier_signal.emit(dlg.get_data())
 
     def _on_edit_supplier_clicked(self):
-        """Handle edit supplier button click"""
         row = self.suppliers_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select a supplier to edit.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select a supplier to edit.", "warning")
             return
-
         try:
             supplier_id = int(self.suppliers_table.item(row, 7).text())
-
             from view.supplier_views import SupplierDialog
-
             supplier_name = self.suppliers_table.item(row, 0).text()
             contact_person = self.suppliers_table.item(row, 1).text()
             phone = self.suppliers_table.item(row, 2).text()
             email = self.suppliers_table.item(row, 3).text()
-
             address_item = self.suppliers_table.item(row, 4)
             address = address_item.toolTip() if address_item.toolTip() else address_item.text()
-
             status = self.suppliers_table.item(row, 5).text()
-
             supplier_data = {
                 'name': supplier_name,
                 'contact_person': contact_person,
@@ -1324,57 +1209,42 @@ class InventoryView(QMainWindow):
                 'status': status,
                 'notes': ""
             }
-
             dlg = SupplierDialog(self, supplier_data)
             if dlg.exec():
                 self.edit_supplier_signal.emit(supplier_id, dlg.get_data())
-
-        except ImportError:
-            self.show_message("Error", "Supplier module not available.", QMessageBox.Icon.Critical)
         except Exception as e:
-            self.show_message("Error", f"Failed to edit supplier: {str(e)}", QMessageBox.Icon.Critical)
+            self.show_message("Error", f"Failed to edit supplier: {str(e)}", "critical")
 
     def _on_delete_supplier_clicked(self):
-        """Handle delete supplier button click"""
         row = self.suppliers_table.currentRow()
         if row < 0:
-            self.show_message("Warning", "Please select a supplier to delete.", QMessageBox.Icon.Warning)
+            self.show_message("Warning", "Please select a supplier to delete.", "warning")
             return
-
         supplier_id = int(self.suppliers_table.item(row, 7).text())
         self.delete_supplier_signal.emit(supplier_id)
 
     def _on_place_order_clicked(self):
-        """Handle place order button click"""
-        try:
-            from view.supplier_views import OrderDialog
-
-            dlg = OrderDialog(self, None, "Auto-detect Supplier", self.db_config, self.order_controller)
-
-            if dlg.exec():
-                order_data = dlg.get_data()
-                self.place_order_signal.emit(order_data)
-
-        except ImportError:
-            self.show_message("Error", "Order module not available.", QMessageBox.Icon.Critical)
-        except Exception as e:
-            self.show_message("Error", f"Failed to place order: {str(e)}", QMessageBox.Icon.Critical)
+        from view.supplier_views import OrderDialog
+        db_config = self.order_controller.db_config if self.order_controller else None
+        dlg = OrderDialog(self, None, "Auto-detect Supplier", db_config, self.order_controller)
+        if dlg.exec():
+            order_data = dlg.get_data()
+            self.place_order_signal.emit(order_data)
 
     def _on_view_orders_clicked(self):
-        """Handle view orders button click"""
-        try:
-            from view.supplier_views import OrdersDialog
+        from view.supplier_views import OrdersDialog
+        db_config = self.order_controller.db_config if self.order_controller else None
+        dlg = OrdersDialog(self, db_config, self.user_role, self.order_controller)
+        dlg.exec()
 
-            dlg = OrdersDialog(self, self.db_config, self.user_role, self.order_controller)
-            dlg.exec()
-        except ImportError as e:
-            self.show_message("Error", f"Orders dialog not available: {str(e)}", QMessageBox.Icon.Critical)
-        except Exception as e:
-            self.show_message("Error", f"Failed to open orders: {str(e)}", QMessageBox.Icon.Critical)
+    def _on_activity_prev_clicked(self):
+        self.activity_log_page_signal.emit(-1)
 
-    # ---------------------------------------------------------
-    # DAMAGE REPORT HELPERS
-    # ---------------------------------------------------------
+    def _on_activity_next_clicked(self):
+        self.activity_log_page_signal.emit(1)
+
+    # ==================== DAMAGE REPORT HELPERS ====================
+
     def load_damage_item_combo(self, items):
         from view.damage_report_view import load_damage_item_combo
         load_damage_item_combo(self, items)
@@ -1387,9 +1257,8 @@ class InventoryView(QMainWindow):
         from view.damage_report_view import clear_damage_form
         clear_damage_form(self)
 
-    # ---------------------------------------------------------
-    # STOCK ISSUANCE HELPERS
-    # ---------------------------------------------------------
+    # ==================== STOCK ISSUANCE HELPERS ====================
+
     def load_issuance_item_combo(self, items):
         from view.stock_issuance_view import load_issuance_item_combo
         load_issuance_item_combo(self, items)
@@ -1402,11 +1271,18 @@ class InventoryView(QMainWindow):
         from view.stock_issuance_view import clear_issuance_form
         clear_issuance_form(self)
 
-    # ---------------------------------------------------------
-    # MESSAGE HELPERS
-    # ---------------------------------------------------------
-    def show_message(self, title, message, icon=QMessageBox.Icon.Information):
-        QMessageBox(icon, title, message, QMessageBox.StandardButton.Ok, self).exec()
+    # ==================== MESSAGE HELPERS ====================
+
+    def show_message(self, title, message, icon_type="information"):
+        icon_map = {
+            "information": QMessageBox.Icon.Information,
+            "warning": QMessageBox.Icon.Warning,
+            "critical": QMessageBox.Icon.Critical,
+            "question": QMessageBox.Icon.Question
+        }
+        icon = icon_map.get(icon_type, QMessageBox.Icon.Information)
+        msg = QMessageBox(icon, title, message, QMessageBox.StandardButton.Ok, self)
+        msg.exec()
 
     def confirm_action(self, title, message):
         reply = QMessageBox.question(self, title, message,

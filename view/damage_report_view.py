@@ -18,7 +18,7 @@ HOW TO USE IN view.py:
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QSpinBox, QTextEdit,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -38,7 +38,7 @@ def create_damage_report_tab(view_instance):
     tab = QWidget()
     layout = QVBoxLayout(tab)
 
-    # ── Header ──────────────────────────────────────────────
+    #  Header
     title = QLabel("Damage Report")
     title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
     title.setStyleSheet("padding: 10px; color: #E74C3C;")
@@ -49,7 +49,7 @@ def create_damage_report_tab(view_instance):
     desc.setWordWrap(True)
     layout.addWidget(desc)
 
-    # ── Form ────────────────────────────────────────────────
+    #  Form
     form_widget = QWidget()
     form_widget.setStyleSheet("""
         QWidget {
@@ -99,14 +99,14 @@ def create_damage_report_tab(view_instance):
 
     layout.addWidget(form_widget)
 
-    # ── Submit button ────────────────────────────────────────
+    #  Submit button
     submit_btn = QPushButton("Submit Damage Report")
     submit_btn.setObjectName("request_btn")
     submit_btn.setFixedHeight(36)
     submit_btn.clicked.connect(lambda: _on_submit(view_instance))
     layout.addWidget(submit_btn)
 
-    # ── Reports table ────────────────────────────────────────
+    #  Reports table
     table_label = QLabel("Submitted Damage Reports")
     table_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
     table_label.setStyleSheet("padding: 10px 0 5px 0;")
@@ -129,24 +129,17 @@ def create_damage_report_tab(view_instance):
 
 
 def _on_submit(view_instance):
-    """Handle submit button click — validates then emits signal"""
+    """Gather form values and emit signal — controller handles all validation."""
     item_id = view_instance.damage_item_combo.currentData()
     item_name = view_instance.damage_item_combo.currentText()
     quantity = view_instance.damage_qty_spin.value()
-    reason = view_instance.damage_reason_input.toPlainText().strip()
-
-    if not item_id:
-        QMessageBox.warning(view_instance, "Warning", "Please select an item.")
-        return
-    if not reason:
-        QMessageBox.warning(view_instance, "Warning", "Please enter a reason for the damage.")
-        return
+    reason = view_instance.damage_reason_input.toPlainText()
 
     # Strip stock info from display name
     if ' (Stock:' in item_name:
         item_name = item_name.split(' (Stock:')[0]
 
-    view_instance.damage_report_signal.emit(item_id, item_name, quantity, reason)
+    view_instance.damage_report_signal.emit(item_id or 0, item_name, quantity, reason)
 
 
 def load_damage_item_combo(view_instance, items):

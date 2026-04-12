@@ -1,462 +1,70 @@
 """
-Inventory Management System - Report Generator
-Generates PDF reports for inventory data
+Inventoria - Report Dialog (View only)
+Place in: view/report_generator.py
+ReportGenerator logic has been moved to model/report_model.py
 """
 
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QComboBox, QMessageBox, QDateEdit, QCheckBox)
 from PyQt6.QtCore import Qt, QDate
-from datetime import datetime, date
-import mysql.connector
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
 import os
 
 
-class ReportGenerator:
-    """Handles generation of various inventory reports"""
-
-    def __init__(self, db_config):
-        self.db_config = db_config
-        self.conn = None
-        self.cursor = None
-        # Set fixed reports directory
-        self.reports_dir = "/Users/jbasquiat/Downloads/reports"
-
-    def connect(self):
-        """Establish database connection"""
-        try:
-            self.conn = mysql.connector.connect(
-                host=self.db_config['host'],
-                user=self.db_config['user'],
-                password=self.db_config['password'],
-                database=self.db_config['database'],
-                port=self.db_config.get('port', 3308)
-            )
-            self.cursor = self.conn.cursor(dictionary=True)
-            return True
-        except Exception as e:
-            print(f"Database connection error: {e}")
-            return False
-
-    def disconnect(self):
-        """Close database connection"""
-        if self.cursor:
-            self.cursor.close()
-        if self.conn:
-            self.conn.close()
-
-    def generate_inventory_report(self, report_type="full", category="All", include_low_stock=False,
-                                 start_date=None, end_date=None):
-        """Generate inventory report as PDF with optional date filtering"""
-        if not self.connect():
-            return False, "Failed to connect to database"
-
-        try:
-            # ── Category filter ──────────────────────────────────────────────
-            base_where = []
-            base_params = []
-            if category != "All":
-                base_where.append("category = %s")
-                base_params.append(category)
-
-            # ── Date filter (filters items that appear in orders in range) ───
-            date_filter_text = ""
-            if start_date and end_date:
-                date_filter_text = f"Date Range: {start_date} to {end_date}"
-                base_where.append(
-                    "id IN (SELECT DISTINCT oi.item_id FROM order_items oi "
-                    "JOIN orders o ON oi.order_id = o.id "
-                    "WHERE o.order_date BETWEEN %s AND %s)"
-                )
-                base_params.extend([start_date, end_date])
-
-            # ── Fetch ALL matching items ──────────────────────────────────────
-            query = "SELECT * FROM items"
-            if base_where:
-                query += " WHERE " + " AND ".join(base_where)
-            query += " ORDER BY category, name"
-            self.cursor.execute(query, tuple(base_params))
-            all_items = self.cursor.fetchall()
-
-            if len(all_items) == 0:
-                self.disconnect()
-                if date_filter_text:
-                    return False, "No items found in orders for the selected date range."
-                elif category != "All":
-                    return False, f"No items found in category '{category}'."
-                else:
-                    return False, "No items found matching the criteria."
-
-            # ── For low_stock report type: filter to low stock only ──────────
-            # For full inventory: always show ALL items (include_low_stock only highlights)
-            if report_type == "low_stock":
-                items = [i for i in all_items if i['quantity'] < i['min_stock']]
-                if not items:
-                    self.disconnect()
-                    return False, "No low stock items found matching the criteria."
-            else:
-                items = all_items
-
-            # ── Stats derived from `items` — always matches what is shown in table ──
-            total_items     = len(items)
-            total_quantity  = sum(i['quantity'] for i in items)
-            total_value     = sum(i['quantity'] * float(i['unit_price']) for i in items)
-            low_stock_count = sum(1 for i in items if i['quantity'] < i['min_stock'])
-            stats = {
-                'total_items':    total_items,
-                'total_quantity': total_quantity,
-                'total_value':    total_value,
-                'low_stock_count': low_stock_count,
-            }
-
-            # Create PDF
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"inventory_report_{timestamp}.pdf"
-
-            # Ensure reports directory exists at fixed location
-            if not os.path.exists(self.reports_dir):
-                os.makedirs(self.reports_dir)
-
-            filepath = os.path.join(self.reports_dir, filename)
-
-            # Use landscape orientation for better table fit
-            doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
-            elements = []
-
-            # Styles
-            styles = getSampleStyleSheet()
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
-                fontSize=16,
-                spaceAfter=10,
-                alignment=1,
-                textColor=colors.black
-            )
-
-            header_style = ParagraphStyle(
-                'Header',
-                parent=styles['Normal'],
-                fontSize=9,
-                textColor=colors.HexColor('#333333')
-            )
-
-            # Title
-            elements.append(Paragraph("INVENTORY MANAGEMENT SYSTEM REPORT", title_style))
-            elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", header_style))
-            elements.append(Spacer(1, 15))
-
-            # Report Type Info
-            type_info = f"<b>Report Type:</b> {report_type.upper()}"
-            if report_type == "full" and category != "All":
-                type_info += f" | <b>Category:</b> {category}"
-            if include_low_stock and report_type == "full":
-                type_info += " | <b>Low Stock Only:</b> Yes"
-            if date_filter_text:
-                type_info += f" | {date_filter_text}"
-
-            elements.append(Paragraph(type_info, styles['Normal']))
-            elements.append(Spacer(1, 10))
-
-            # Statistics - USING "PHP" INSTEAD OF SYMBOL
-            stats_text = f"""
-            <b>Statistics:</b><br/>
-            • Total Items: {stats['total_items'] or 0}<br/>
-            • Total Quantity: {stats['total_quantity'] or 0}<br/>
-            • Total Value: PHP {stats['total_value'] or 0:,.2f}<br/>
-            • Low Stock Items: {stats['low_stock_count'] or 0}<br/>
-            """
-            elements.append(Paragraph(stats_text, styles['Normal']))
-            elements.append(Spacer(1, 15))
-
-            # Items Table - with optimized column widths
-            table_data = [['ID', 'Item Name', 'Category', 'Qty', 'Min', 'Price', 'Value', 'Supplier', 'Status']]
-
-            for item in items:
-                total_value = item['quantity'] * float(item['unit_price'])
-                status = "LOW" if item['quantity'] < item['min_stock'] else "OK"
-
-                row = [
-                    str(item['id']),
-                    item['name'][:25] + "..." if len(item['name']) > 25 else item['name'],
-                    item['category'][:12] if len(item['category']) > 12 else item['category'],
-                    str(item['quantity']),
-                    str(item['min_stock']),
-                    f"PHP {float(item['unit_price']):.2f}",  # CHANGED TO "PHP"
-                    f"PHP {total_value:.2f}",  # CHANGED TO "PHP"
-                    (item['supplier'] or "")[:18] + "..." if len(item['supplier'] or "") > 18 else (item['supplier'] or ""),
-                    status
-                ]
-                table_data.append(row)
-
-            # Calculate column widths for landscape A4
-            col_widths = [
-                1.2*cm,   # ID
-                6.0*cm,   # Item Name
-                2.8*cm,   # Category
-                1.5*cm,   # Quantity
-                1.5*cm,   # Min Stock
-                2.2*cm,   # Unit Price
-                2.5*cm,   # Total Value
-                5.0*cm,   # Supplier
-                1.5*cm,   # Status
-            ]
-
-            # Create table
-            table = Table(table_data, colWidths=col_widths, repeatRows=1)
-
-            # GREY/BLACK COLOR PALETTE
-            header_bg = colors.HexColor('#2C3E50')      # Dark grey-blue
-            header_text = colors.white
-            row_bg_even = colors.HexColor('#F8F9FA')    # Very light grey
-            row_bg_odd = colors.white
-            grid_color = colors.HexColor('#BDC3C7')     # Medium grey
-            low_stock_bg = colors.HexColor('#FFEAA7')   # Light yellow for low stock
-            low_stock_text = colors.HexColor('#D35400') # Dark orange text
-
-            # Style the table with grey/black theme
-            table.setStyle(TableStyle([
-                # Header row
-                ('BACKGROUND', (0, 0), (-1, 0), header_bg),
-                ('TEXTCOLOR', (0, 0), (-1, 0), header_text),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('TOPPADDING', (0, 0), (-1, 0), 6),
-
-                # Data rows - alternating colors
-                ('BACKGROUND', (0, 1), (-1, -1), row_bg_even),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [row_bg_even, row_bg_odd]),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('TOPPADDING', (0, 1), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-
-                # Alignment
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('ALIGN', (0, 1), (0, -1), 'LEFT'),      # ID left-aligned
-                ('ALIGN', (1, 1), (1, -1), 'LEFT'),      # Name left-aligned
-                ('ALIGN', (7, 1), (7, -1), 'LEFT'),      # Supplier left-aligned
-                ('ALIGN', (5, 1), (6, -1), 'RIGHT'),     # Prices right-aligned
-
-                # Grid
-                ('GRID', (0, 0), (-1, -1), 0.5, grid_color),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-
-            # Highlight low stock rows
-            for i, item in enumerate(items, start=1):
-                if item['quantity'] < item['min_stock']:
-                    table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, i), (-1, i), low_stock_bg),
-                        ('TEXTCOLOR', (0, i), (-1, i), low_stock_text),
-                        ('FONTNAME', (0, i), (-1, i), 'Helvetica-Bold'),
-                    ]))
-
-            elements.append(table)
-
-            # Add footer with item count
-            footer_text = f"Total items: {len(items)} | Generated by Inventoria System"
-            elements.append(Spacer(1, 10))
-            elements.append(Paragraph(footer_text, header_style))
-
-            # Build PDF
-            doc.build(elements)
-
-            self.disconnect()
-            return True, filepath
-
-        except Exception as e:
-            if self.conn:
-                self.disconnect()
-            return False, f"Error generating report: {str(e)}"
-
-    def generate_category_summary(self):
-        """Generate category summary report"""
-        if not self.connect():
-            return False, "Failed to connect to database"
-
-        try:
-            self.cursor.execute("""
-                SELECT 
-                    category,
-                    COUNT(*) as item_count,
-                    SUM(quantity) as total_quantity,
-                    SUM(quantity * unit_price) as total_value,
-                    COUNT(CASE WHEN quantity < min_stock THEN 1 END) as low_stock_count
-                FROM items
-                GROUP BY category
-                ORDER BY category
-            """)
-            categories = self.cursor.fetchall()
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"category_summary_{timestamp}.pdf"
-            filepath = os.path.join(self.reports_dir, filename)
-
-            # Use portrait for simpler table
-            doc = SimpleDocTemplate(filepath, pagesize=A4)
-            elements = []
-
-            styles = getSampleStyleSheet()
-
-            title_style = ParagraphStyle(
-                'CategoryTitle',
-                parent=styles['Heading1'],
-                fontSize=16,
-                spaceAfter=12,
-                alignment=1,
-                textColor=colors.black
-            )
-
-            elements.append(Paragraph("CATEGORY SUMMARY REPORT", title_style))
-            elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
-            elements.append(Spacer(1, 20))
-
-            if categories:
-                table_data = [['Category', 'Items', 'Total Qty', 'Total Value', 'Low Stock']]
-
-                for cat in categories:
-                    row = [
-                        cat['category'],
-                        str(cat['item_count']),
-                        str(cat['total_quantity']),
-                        f"PHP {cat['total_value'] or 0:,.2f}",  # CHANGED TO "PHP"
-                        str(cat['low_stock_count'])
-                    ]
-                    table_data.append(row)
-
-                # GREY/BLACK COLOR PALETTE
-                header_bg = colors.HexColor('#2C3E50')
-                header_text = colors.white
-                row_bg_even = colors.HexColor('#F8F9FA')
-                row_bg_odd = colors.white
-                grid_color = colors.HexColor('#BDC3C7')
-
-                # Optimized column widths for portrait
-                col_widths = [4.5*cm, 2.5*cm, 3.0*cm, 4.0*cm, 2.5*cm]
-
-                table = Table(table_data, colWidths=col_widths)
-                table.setStyle(TableStyle([
-                    # Header
-                    ('BACKGROUND', (0, 0), (-1, 0), header_bg),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), header_text),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 11),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                    ('TOPPADDING', (0, 0), (-1, 0), 8),
-
-                    # Data rows
-                    ('BACKGROUND', (0, 1), (-1, -1), row_bg_even),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [row_bg_even, row_bg_odd]),
-                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                    ('FONTSIZE', (0, 1), (-1, -1), 10),
-
-                    # Alignment
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('ALIGN', (0, 1), (0, -1), 'LEFT'),      # Category left-aligned
-                    ('ALIGN', (3, 1), (3, -1), 'RIGHT'),     # Value right-aligned
-
-                    # Grid
-                    ('GRID', (0, 0), (-1, -1), 0.5, grid_color),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-
-                elements.append(table)
-            else:
-                elements.append(Paragraph("No categories found.", styles['Normal']))
-
-            # Add summary
-            total_items = sum(cat['item_count'] for cat in categories)
-            total_value = sum(cat['total_value'] or 0 for cat in categories)
-            total_low_stock = sum(cat['low_stock_count'] for cat in categories)
-
-            elements.append(Spacer(1, 20))
-            summary_text = f"""
-            <b>Summary:</b><br/>
-            • Total Categories: {len(categories)}<br/>
-            • Total Items: {total_items}<br/>
-            • Total Value: PHP {total_value:,.2f}<br/>
-            • Total Low Stock Items: {total_low_stock}<br/>
-            """
-            elements.append(Paragraph(summary_text, styles['Normal']))
-
-            doc.build(elements)
-            self.disconnect()
-            return True, filepath
-
-        except Exception as e:
-            if self.conn:
-                self.disconnect()
-            return False, f"Error generating category report: {str(e)}"
-
 
 class ReportDialog(QDialog):
-    """Dialog for generating reports"""
+    """View-only dialog for report generation. Collects inputs and emits signals."""
 
     def __init__(self, parent=None, db_config=None):
         super().__init__(parent)
-        self.db_config = db_config or {
-            'host': 'localhost',
-            'database': 'inventoria_db',
-            'user': 'root',
-            'password': ''
-        }
-
+        self.db_config = db_config
         self.setWindowTitle("Generate Report")
-        self.setFixedSize(450, 450)  # Increased height for date filters
+        self.setFixedSize(450, 450)
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
 
-        # Title
-        title_label = QLabel("📊 Generate Inventory Report")
+        title_label = QLabel("Generate Inventory Report")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 20px;")
         layout.addWidget(title_label)
 
-        # Report directory info
         reports_dir = "/Users/jbasquiat/Downloads/reports"
         dir_label = QLabel(f"Reports will be saved to:\n{reports_dir}")
         dir_label.setStyleSheet("color: #666; font-size: 11px; padding: 5px; background-color: #f0f0f0; border-radius: 5px;")
         dir_label.setWordWrap(True)
         layout.addWidget(dir_label)
 
-        # Report Type
         layout.addWidget(QLabel("Report Type:"))
         self.report_type_combo = QComboBox()
-        self.report_type_combo.addItems(["Full Inventory", "Category Summary", "Low Stock Only"])
+        self.report_type_combo.addItems([
+            "Full Inventory",
+            "Category Summary",
+            "Low Stock Only",
+            "Damage Report",
+            "Stock Issuance Report"
+        ])
         self.report_type_combo.currentTextChanged.connect(self.on_report_type_changed)
         layout.addWidget(self.report_type_combo)
 
-        # Category (if applicable)
         layout.addWidget(QLabel("Category:"))
         self.category_combo = QComboBox()
         self.category_combo.addItems(["All", "Linens", "Toiletries", "Cleaning",
-                                     "Kitchen", "Furniture", "Electronics", "Other"])
+                                      "Kitchen", "Furniture", "Electronics", "Other"])
         layout.addWidget(self.category_combo)
 
-        # Date Range Filter (NEW)
-        layout.addWidget(QLabel("📅 Date Range (Optional):"))
+        layout.addWidget(QLabel("Date Range (Optional):"))
 
-        # Enable date filter checkbox
         self.enable_date_filter = QCheckBox("Enable Date Filter")
         self.enable_date_filter.setChecked(False)
         self.enable_date_filter.stateChanged.connect(self.toggle_date_filter)
         layout.addWidget(self.enable_date_filter)
 
-        # Date range container
         date_layout = QHBoxLayout()
-
         date_layout.addWidget(QLabel("From:"))
         self.start_date = QDateEdit()
         self.start_date.setCalendarPopup(True)
-        self.start_date.setDate(QDate.currentDate().addMonths(-1))  # Default: 1 month ago
+        self.start_date.setDate(QDate.currentDate().addMonths(-1))
         self.start_date.setDisplayFormat("yyyy-MM-dd")
         self.start_date.setEnabled(False)
         date_layout.addWidget(self.start_date)
@@ -464,131 +72,90 @@ class ReportDialog(QDialog):
         date_layout.addWidget(QLabel("To:"))
         self.end_date = QDateEdit()
         self.end_date.setCalendarPopup(True)
-        self.end_date.setDate(QDate.currentDate())  # Default: today
+        self.end_date.setDate(QDate.currentDate())
         self.end_date.setDisplayFormat("yyyy-MM-dd")
         self.end_date.setEnabled(False)
         date_layout.addWidget(self.end_date)
-
         layout.addLayout(date_layout)
 
-        # Low Stock option
-        self.include_low_stock_check = QCheckBox("🔴 Highlight Low Stock Items")
+        self.include_low_stock_check = QCheckBox("Highlight Low Stock Items")
         self.include_low_stock_check.setChecked(True)
         layout.addWidget(self.include_low_stock_check)
 
-        # Buttons
         button_layout = QHBoxLayout()
-
-        generate_btn = QPushButton("📄 Generate PDF Report")
-        generate_btn.clicked.connect(self.generate_report)
+        generate_btn = QPushButton("Generate PDF Report")
+        generate_btn.clicked.connect(self._on_generate_clicked)
         button_layout.addWidget(generate_btn)
 
-        # Open Reports Folder button
-        open_folder_btn = QPushButton("📂 Open Reports Folder")
-        open_folder_btn.clicked.connect(self.open_reports_folder)
+        open_folder_btn = QPushButton("Open Reports Folder")
+        open_folder_btn.clicked.connect(self._on_open_folder_clicked)
         button_layout.addWidget(open_folder_btn)
-
         layout.addLayout(button_layout)
 
-        # Close button
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.reject)
         layout.addWidget(close_btn)
 
-        # Status label
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: #666; font-size: 11px;")
         layout.addWidget(self.status_label)
 
     def toggle_date_filter(self, state):
-        """Enable/disable date picker based on checkbox"""
-        enabled = (state == 2)  # Qt.Checked = 2
+        """Enable/disable date pickers — pure UI toggle."""
+        enabled = (state == 2)
         self.start_date.setEnabled(enabled)
         self.end_date.setEnabled(enabled)
 
     def on_report_type_changed(self, text):
-        """Handle report type change"""
+        """Update UI state based on report type — pure display logic."""
         if text == "Low Stock Only":
             self.include_low_stock_check.setEnabled(False)
-            self.include_low_stock_check.setText("✓ Low Stock Only (already filtered)")
+            self.include_low_stock_check.setText("Low Stock Only (already filtered)")
             self.include_low_stock_check.setChecked(True)
             self.category_combo.setEnabled(False)
-        elif text == "Category Summary":
+        elif text in ("Category Summary", "Damage Report", "Stock Issuance Report"):
             self.include_low_stock_check.setEnabled(False)
-            self.include_low_stock_check.setText("N/A for Category Summary")
+            self.include_low_stock_check.setText(f"N/A for {text}")
             self.include_low_stock_check.setChecked(False)
             self.category_combo.setEnabled(False)
-        else:  # Full Inventory
+        else:
             self.include_low_stock_check.setEnabled(True)
-            self.include_low_stock_check.setText("🔴 Highlight Low Stock Items")
+            self.include_low_stock_check.setText("Highlight Low Stock Items")
             self.include_low_stock_check.setChecked(True)
             self.category_combo.setEnabled(True)
-            self.category_combo.setCurrentIndex(0)  # Reset to "All"
+            self.category_combo.setCurrentIndex(0)
 
-    def generate_report(self):
-        report_type_text = self.report_type_combo.currentText()
-        category = self.category_combo.currentText()
-        include_low_stock = self.include_low_stock_check.isChecked()
+    def _on_generate_clicked(self):
+        """Gather inputs and pass to controller via callback — no generation logic here."""
+        params = {
+            'report_type': self.report_type_combo.currentText(),
+            'category': self.category_combo.currentText(),
+            'include_low_stock': self.include_low_stock_check.isChecked(),
+            'start_date': self.start_date.date().toString("yyyy-MM-dd") if self.enable_date_filter.isChecked() else None,
+            'end_date': self.end_date.date().toString("yyyy-MM-dd") if self.enable_date_filter.isChecked() else None,
+        }
+        if self._generate_callback:
+            self._generate_callback(params)
 
-        # Get date range if enabled
-        start_date = None
-        end_date = None
-        if self.enable_date_filter.isChecked():
-            start_date = self.start_date.date().toString("yyyy-MM-dd")
-            end_date = self.end_date.date().toString("yyyy-MM-dd")
+    def _on_open_folder_clicked(self):
+        """Tell controller to open the reports folder."""
+        if self._open_folder_callback:
+            self._open_folder_callback()
 
-        generator = ReportGenerator(self.db_config)
+    def set_callbacks(self, generate_callback, open_folder_callback):
+        """Controller injects its handler functions."""
+        self._generate_callback = generate_callback
+        self._open_folder_callback = open_folder_callback
 
-        if report_type_text == "Category Summary":
-            success, result = generator.generate_category_summary()
-        elif report_type_text == "Low Stock Only":
-            success, result = generator.generate_inventory_report(
-                report_type="low_stock",
-                category="All",
-                include_low_stock=False,
-                start_date=start_date,
-                end_date=end_date
-            )
-        else:  # Full Inventory
-            success, result = generator.generate_inventory_report(
-                report_type="full",
-                category=category,
-                include_low_stock=include_low_stock,
-                start_date=start_date,
-                end_date=end_date
-            )
-
+    def show_result(self, success, message):
+        """Controller calls this to update the status label after generation."""
         if success:
-            self.status_label.setText(f"✅ Report generated: {os.path.basename(result)}")
-
-            filter_info = f"• Report Type: {report_type_text}\n• Category: {category}\n• Low Stock Only: {'Yes' if report_type_text == 'Low Stock Only' else ('Yes' if include_low_stock else 'No')}"
-            if start_date and end_date:
-                filter_info += f"\n• Date Range: {start_date} to {end_date}"
-
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Report generated successfully!\n\nSaved to:\n{result}\n\nFilter applied:\n{filter_info}"
-            )
+            self.status_label.setText(f"Report generated: {message}")
+            QMessageBox.information(self, "Success", f"Report generated successfully!\n\nSaved to:\n{message}")
         else:
-            self.status_label.setText("❌ Failed to generate report")
-            QMessageBox.critical(self, "Error", result)
+            self.status_label.setText("Failed to generate report")
+            QMessageBox.critical(self, "Error", message)
 
-    def open_reports_folder(self):
-        """Open the reports folder in Finder (Mac)"""
-        import subprocess
-        import os
-
-        reports_dir = "/Users/jbasquiat/Downloads/reports"
-
-        # Create directory if it doesn't exist
-        if not os.path.exists(reports_dir):
-            os.makedirs(reports_dir)
-            self.status_label.setText("📁 Created reports directory")
-
-        # Open folder in Finder (Mac)
-        try:
-            subprocess.run(["open", reports_dir])
-            self.status_label.setText("📂 Opening reports folder...")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open folder:\n{str(e)}")
+    def show_folder_status(self, message):
+        """Controller calls this to update folder open status."""
+        self.status_label.setText(message)

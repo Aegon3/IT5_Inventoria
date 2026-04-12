@@ -5,7 +5,6 @@ Inventory Management System - Dialogs
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QLineEdit, QComboBox,
                              QSpinBox, QDoubleSpinBox, QPushButton,
                              QHBoxLayout, QLabel)
-import mysql.connector
 
 
 class InventoryDialog(QDialog):
@@ -35,66 +34,42 @@ class InventoryDialog(QDialog):
         self.unit_price_spin.setPrefix("₱ ")
         self.unit_price_spin.setDecimals(2)
 
-        # CHANGED: Supplier is now a combo box instead of line edit
         self.supplier_combo = QComboBox()
-        self.supplier_combo.addItem("Select Supplier")  # Default option
-
-        # Load existing suppliers from database
+        self.supplier_combo.addItem("Select Supplier")
         self.load_suppliers()
 
-        # FIXED: Handle both dict and list item_data formats
         if self.item_data:
             if isinstance(self.item_data, dict):
-                # Handle dict format
                 self.name_input.setText(self.item_data.get('name', ''))
                 self.category_combo.setCurrentText(self.item_data.get('category', 'Linens'))
-                self.quantity_spin.setValue(self.item_data.get('quantity', 0))
-                self.min_stock_spin.setValue(self.item_data.get('min_stock', 0))
-                self.unit_price_spin.setValue(float(self.item_data.get('unit_price', 0.0)))
+                price_str = str(self.item_data.get('unit_price', '0'))
+                price_clean = price_str.replace('₱', '').replace('PHP', '').replace('$', '').strip()
+                try:
+                    price_value = float(price_clean)
+                except ValueError:
+                    import re
+                    numbers = re.findall(r'\d+\.?\d*', price_clean)
+                    price_value = float(numbers[0]) if numbers else 0.0
+                self.unit_price_spin.setValue(price_value)
 
-                # Set supplier from dict
+                qty_str = str(self.item_data.get('quantity', '0'))
+                self.quantity_spin.setValue(int(qty_str) if qty_str.isdigit() else 0)
+                min_str = str(self.item_data.get('min_stock', '0'))
+                self.min_stock_spin.setValue(int(min_str) if min_str.isdigit() else 0)
+
                 supplier_text = self.item_data.get('supplier', '')
                 index = self.supplier_combo.findText(supplier_text)
                 if index >= 0:
                     self.supplier_combo.setCurrentIndex(index)
                 else:
                     self.supplier_combo.setCurrentText(supplier_text)
-            elif isinstance(self.item_data, list):
-                # Handle old list format (backward compatibility)
-                self.name_input.setText(self.item_data[0])
-                self.category_combo.setCurrentText(self.item_data[1])
-                self.quantity_spin.setValue(int(self.item_data[2]))
-                self.min_stock_spin.setValue(int(self.item_data[3]))
-
-                # Handle price - both string and number formats
-                price_str = str(self.item_data[4])
-                # Remove currency symbols and text, keep only numbers
-                price_clean = price_str.replace('₱', '').replace('PHP', '').replace('$', '').strip()
-                try:
-                    price_value = float(price_clean)
-                except ValueError:
-                    # If still can't convert, try to extract numbers
-                    import re
-                    numbers = re.findall(r'\d+\.?\d*', price_clean)
-                    price_value = float(numbers[0]) if numbers else 0.0
-                self.unit_price_spin.setValue(price_value)
-
-                # Set supplier if it exists
-                if len(self.item_data) > 6:
-                    supplier_text = self.item_data[6]
-                    # Try to find this supplier in the combo box
-                    index = self.supplier_combo.findText(supplier_text)
-                    if index >= 0:
-                        self.supplier_combo.setCurrentIndex(index)
-                    else:
-                        self.supplier_combo.setCurrentText(supplier_text)
 
         layout.addRow("Item Name:", self.name_input)
         layout.addRow("Category:", self.category_combo)
         layout.addRow("Quantity:", self.quantity_spin)
         layout.addRow("Min Stock Level:", self.min_stock_spin)
         layout.addRow("Unit Price:", self.unit_price_spin)
-        layout.addRow("Supplier:", self.supplier_combo)  # CHANGED: Now combo box
+        layout.addRow("Supplier:", self.supplier_combo)
 
         btn_layout = QHBoxLayout()
         save_btn = QPushButton("Save")
@@ -108,34 +83,13 @@ class InventoryDialog(QDialog):
         self.setLayout(layout)
 
     def load_suppliers(self):
-        """Load existing suppliers from database"""
         try:
-            db_config = {
-                'host': 'localhost',
-                'database': 'inventoria_db',
-                'user': 'root',
-                'password': '',
-                'port': 3308
-            }
-
-            conn = mysql.connector.connect(**db_config)
-            cursor = conn.cursor(dictionary=True)
-
-            cursor.execute("SELECT id, name FROM suppliers WHERE status = 'active' ORDER BY name")
-            suppliers = cursor.fetchall()
-
-            # Add each supplier to the combo box
+            from controller.supplier_controller import SupplierController
+            suppliers = SupplierController.get_active_suppliers_static()
             for supplier in suppliers:
                 self.supplier_combo.addItem(supplier['name'], supplier['id'])
-
-            cursor.close()
-            conn.close()
-
-            print(f"✅ Loaded {len(suppliers)} suppliers for item dialog")
-
         except Exception as e:
-            print(f"⚠️ Error loading suppliers: {e}")
-            # Fallback to common suppliers if database fails
+            print(f"Error loading suppliers: {e}")
             fallback_suppliers = [
                 "Linen Supply Co", "Hospitality Goods Inc", "CleanPro Supplies",
                 "Paper Products LLC", "Hotel Food Service", "Restaurant Supply Co",
@@ -151,7 +105,7 @@ class InventoryDialog(QDialog):
             'quantity': self.quantity_spin.value(),
             'min_stock': self.min_stock_spin.value(),
             'unit_price': self.unit_price_spin.value(),
-            'supplier': self.supplier_combo.currentText()  # CHANGED: Now gets from combo
+            'supplier': self.supplier_combo.currentText()
         }
 
 
@@ -190,13 +144,13 @@ class StockAdjustmentDialog(QDialog):
         layout.addRow("Adjustment Amount:", self.adjustment_spin)
         layout.addRow(self.preview_label)
 
-        help_label = QLabel("💡 Use positive numbers to add stock, negative to remove")
+        help_label = QLabel("Use positive numbers to add stock, negative to remove")
         help_label.setStyleSheet("font-size: 11px; color: #666666; padding: 5px;")
         layout.addRow(help_label)
 
         btn_layout = QHBoxLayout()
-        apply_btn = QPushButton("✓ Apply")
-        cancel_btn = QPushButton("✗ Cancel")
+        apply_btn = QPushButton("Apply")
+        cancel_btn = QPushButton("Cancel")
         apply_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(apply_btn)

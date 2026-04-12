@@ -1,5 +1,6 @@
 """
 Database Handler for Inventoria
+Low-level database operations - This file is allowed to have if statements and try/catch.
 """
 
 import mysql.connector
@@ -37,11 +38,8 @@ class DatabaseHandler:
         if self.conn:
             self.conn.close()
 
-    # ------------------- Table Creation -------------------
     def create_tables(self):
-        """Create tables if they don't exist"""
         try:
-            # Users table
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +50,6 @@ class DatabaseHandler:
             )
             """)
 
-            # Items table
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS items (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,9 +62,6 @@ class DatabaseHandler:
             )
             """)
 
-            # ========== NEW TABLES FOR SUPPLIERS & APPROVALS ==========
-
-            # 1. SUPPLIERS TABLE
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS suppliers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -82,7 +76,6 @@ class DatabaseHandler:
             )
             """)
 
-            # 2. ITEM_SUPPLIER LINK TABLE (Many-to-Many)
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS item_suppliers (
                 item_id INT,
@@ -94,7 +87,6 @@ class DatabaseHandler:
             )
             """)
 
-            # 3. ORDERS TABLE
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -111,7 +103,6 @@ class DatabaseHandler:
             )
             """)
 
-            # 4. ORDER_ITEMS TABLE
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS order_items (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -126,7 +117,6 @@ class DatabaseHandler:
             )
             """)
 
-            # 5. STOCK_REQUESTS TABLE (Approval Workflow)
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS stock_requests (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,7 +134,7 @@ class DatabaseHandler:
                 FOREIGN KEY (item_id) REFERENCES items(id)
             )
             """)
-            # 6. ACTIVITY LOG TABLE
+
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_log (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -155,15 +145,12 @@ class DatabaseHandler:
                 INDEX idx_timestamp (timestamp)
             )
             """)
-            # ========== END OF NEW TABLES ==========
 
             self.conn.commit()
         except Error as e:
             print(f"Create tables error: {e}")
 
-    # ------------------- Activity Log -------------------
     def log_action(self, username, action, details=""):
-        """Insert a record into activity_log"""
         try:
             self.cursor.execute(
                 "INSERT INTO activity_log (username, action, details) VALUES (%s, %s, %s)",
@@ -174,7 +161,6 @@ class DatabaseHandler:
             print(f"Activity log error: {e}")
 
     def get_activity_log(self, limit=200):
-        """Fetch recent activity log entries, newest first"""
         try:
             self.cursor.execute(
                 "SELECT id, timestamp, username, action, details FROM activity_log ORDER BY timestamp DESC LIMIT %s",
@@ -185,15 +171,12 @@ class DatabaseHandler:
             print(f"Get activity log error: {e}")
             return []
 
-    # ------------------- Authentication -------------------
     def authenticate_user(self, username, password):
-        """Authenticate user against database"""
         query = "SELECT username, full_name, role, password FROM users WHERE username=%s AND password=%s"
         self.cursor.execute(query, (username, password))
         user = self.cursor.fetchone()
         return user
 
-    # ------------------- Inventory CRUD -------------------
     def is_empty(self):
         self.cursor.execute("SELECT COUNT(*) as count FROM items")
         result = self.cursor.fetchone()
@@ -246,7 +229,6 @@ class DatabaseHandler:
             print(f"Adjust stock error: {e}")
             return False
 
-    # ------------------- NEW SUPPLIER METHODS -------------------
     def add_supplier(self, name, contact_person, phone, email, address, notes=""):
         try:
             query = """
@@ -276,23 +258,17 @@ class DatabaseHandler:
             return False
 
     def delete_supplier(self, supplier_id):
-        """Delete a supplier - FIXED VERSION"""
         try:
-            # First, check if supplier exists in orders
             self.cursor.execute("SELECT COUNT(*) as order_count FROM orders WHERE supplier_id = %s", (supplier_id,))
             order_result = self.cursor.fetchone()
 
             if order_result['order_count'] > 0:
-                # Supplier has orders, mark as inactive instead of hard delete
                 query = "UPDATE suppliers SET status='inactive' WHERE id=%s"
                 self.cursor.execute(query, (supplier_id,))
                 self.conn.commit()
                 return True, "Supplier removed from list (had existing orders, marked inactive)"
             else:
-                # Delete from item_suppliers first (foreign key constraint)
                 self.cursor.execute("DELETE FROM item_suppliers WHERE supplier_id = %s", (supplier_id,))
-
-                # Then delete supplier
                 query = "DELETE FROM suppliers WHERE id=%s"
                 self.cursor.execute(query, (supplier_id,))
                 self.conn.commit()
@@ -302,7 +278,6 @@ class DatabaseHandler:
             return False, str(e)
 
     def get_all_suppliers(self):
-        """Get all suppliers with item counts - FIXED"""
         try:
             query = """
                 SELECT s.*, 
@@ -327,7 +302,6 @@ class DatabaseHandler:
         return self.cursor.fetchone()
 
     def get_supplier_items(self, supplier_id):
-        """Get items supplied by a specific supplier"""
         try:
             query = """
                 SELECT i.name, i.category, i.quantity, isup.is_primary
@@ -342,7 +316,6 @@ class DatabaseHandler:
             print(f"Get supplier items error: {e}")
             return []
 
-    # ------------------- NEW ORDER METHODS -------------------
     def create_order(self, supplier_id, order_number, created_by, notes="", expected_delivery=None):
         try:
             query = """
@@ -378,10 +351,8 @@ class DatabaseHandler:
             self.cursor.execute(query)
         return self.cursor.fetchall()
 
-    # ------------------- NEW STOCK REQUEST METHODS -------------------
     def create_stock_request(self, item_id, requested_quantity, requested_by, reason="", request_type="manual"):
         try:
-            # Get current quantity
             self.cursor.execute("SELECT quantity FROM items WHERE id = %s", (item_id,))
             item = self.cursor.fetchone()
             current_quantity = item['quantity'] if item else 0
@@ -410,7 +381,6 @@ class DatabaseHandler:
         return self.cursor.fetchall()
 
     def get_all_stock_requests(self):
-        """Get ALL stock requests (pending, approved, rejected) for Activity Log"""
         query = """
             SELECT sr.*, i.name as item_name, i.category as item_category
             FROM stock_requests sr
@@ -422,7 +392,6 @@ class DatabaseHandler:
 
     def approve_stock_request(self, request_id, approved_by, notes=""):
         try:
-            # First get the request details
             query = "SELECT item_id, requested_quantity FROM stock_requests WHERE id = %s"
             self.cursor.execute(query, (request_id,))
             request = self.cursor.fetchone()
@@ -430,11 +399,9 @@ class DatabaseHandler:
             if not request:
                 return False
 
-            # Update stock
             update_query = "UPDATE items SET quantity = quantity + %s WHERE id = %s"
             self.cursor.execute(update_query, (request['requested_quantity'], request['item_id']))
 
-            # Update request status
             status_query = """
                 UPDATE stock_requests 
                 SET status='approved', approved_by=%s, approval_date=NOW(), notes=%s
@@ -462,9 +429,7 @@ class DatabaseHandler:
             print(f"Reject stock request error: {e}")
             return False
 
-    # ------------------- Bulk Operations -------------------
     def bulk_insert_items(self, items_data):
-        """Insert multiple items at once"""
         try:
             query = """
                 INSERT INTO items (name, category, quantity, min_stock, unit_price, supplier)
@@ -478,32 +443,27 @@ class DatabaseHandler:
             return False
 
     def get_item_by_name(self, name):
-        """Get item by exact name match"""
         query = "SELECT * FROM items WHERE name = %s"
         self.cursor.execute(query, (name,))
         return self.cursor.fetchone()
 
     def item_exists(self, name):
-        """Check if item exists by name"""
         query = "SELECT COUNT(*) as count FROM items WHERE name = %s"
         self.cursor.execute(query, (name,))
         result = self.cursor.fetchone()
         return result['count'] > 0
 
     def supplier_exists(self, supplier_id):
-        """Check if supplier exists"""
         query = "SELECT COUNT(*) as count FROM suppliers WHERE id = %s"
         self.cursor.execute(query, (supplier_id,))
         result = self.cursor.fetchone()
         return result['count'] > 0
 
     def get_all_categories(self):
-        """Get all unique categories"""
         query = "SELECT DISTINCT category FROM items ORDER BY category"
         self.cursor.execute(query)
         return [row['category'] for row in self.cursor.fetchall()]
 
-    # ------------------- Queries -------------------
     def get_all_items(self):
         query = "SELECT * FROM items"
         self.cursor.execute(query)

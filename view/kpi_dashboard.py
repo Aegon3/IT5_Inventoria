@@ -21,7 +21,7 @@ try:
     CHARTS_AVAILABLE = True
 except ImportError:
     CHARTS_AVAILABLE = False
-    print("⚠️ PyQt6-Qt6Charts not installed — charts will be skipped.")
+    print(" PyQt6-Qt6Charts not installed — charts will be skipped.")
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ class ValueAnalyticsDialog(QDialog):
         self.stats = stats or {}
         # category_data is provided by KPIController — no DB query needed here
         self.category_data = category_data or []
-        self.setWindowTitle("📊 Total Value Analytics")
+        self.setWindowTitle(" Total Value Analytics")
         self.setMinimumSize(1000, 750)
         self.resize(1060, 800)
         self.setModal(True)
@@ -114,17 +114,16 @@ class ValueAnalyticsDialog(QDialog):
         layout.setSpacing(14)
         layout.setContentsMargins(20, 20, 20, 16)
 
-        title = QLabel("💰 Inventory Value Analytics")
+        title = QLabel(" Inventory Value Analytics")
         title.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         title.setStyleSheet("color: #2C3E50;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        # Summary cards
+        # Summary cards — all values pre-computed by KPIController
         total_value = self.stats.get('total_value', 0.0)
-        total_items = self.stats.get('total_items', 0)
         low_stock   = self.stats.get('low_stock_count', 0)
-        avg_value   = total_value / total_items if total_items > 0 else 0.0
+        avg_value   = self.stats.get('avg_item_value', 0.0)
 
         summary_row = QHBoxLayout()
         summary_row.setSpacing(10)
@@ -171,7 +170,7 @@ class ValueAnalyticsDialog(QDialog):
             layout.addLayout(charts_row)
 
         # Breakdown table
-        table_label = QLabel("📋 Value Breakdown by Category")
+        table_label = QLabel(" Value Breakdown by Category")
         table_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         table_label.setStyleSheet("color: #2C3E50;")
         layout.addWidget(table_label)
@@ -179,7 +178,7 @@ class ValueAnalyticsDialog(QDialog):
         self._build_table(layout, total_value)
 
         # Close button
-        close_btn = QPushButton("✕  Close")
+        close_btn = QPushButton("  Close")
         close_btn.setFixedWidth(120)
         close_btn.setStyleSheet("""
             QPushButton { background-color: #607D8B; color: white; border: none;
@@ -286,7 +285,7 @@ class ValueAnalyticsDialog(QDialog):
         for row_idx, row in enumerate(self.category_data):
             val = row['total_value']
             cnt = row['count']
-            pct = (val / total_value * 100) if total_value > 0 else 0.0
+            pct = row.get('pct', 0.0)  # Pre-computed by KPIController
 
             table.setItem(row_idx, 0, QTableWidgetItem(row['category']))
             table.setItem(row_idx, 1, QTableWidgetItem(f"₱{val:,.2f}"))
@@ -317,14 +316,8 @@ class KPIDashboard(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        title = QLabel("Key Performance Indicators")
-        title.setFont(QFont("Arial", 15, QFont.Weight.Bold))
-        title.setStyleSheet("color: #2C3E50; padding: 6px;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         hint = QLabel("Click any card to navigate or view details")
         hint.setFont(QFont("Arial", 9))
@@ -333,17 +326,16 @@ class KPIDashboard(QWidget):
         layout.addWidget(hint)
 
         grid = QGridLayout()
-        grid.setSpacing(14)
+        grid.setSpacing(16)
+        grid.setContentsMargins(0, 0, 0, 0)
 
-        self.total_items_card = KPICard("Total Items",     "0",     "All inventory items",  "#3498DB", "📦")
-        self.total_value_card = KPICard("Total Value",     "₱0.00", "Click for analytics",  "#2ECC71", "💰")
-        self.low_stock_card   = KPICard("Low Stock Items", "0",     "Items below minimum",  "#E74C3C", "⚠️")
-        self.categories_card  = KPICard("Categories",      "0",     "Active categories",    "#9B59B6", "🏷️")
+        self.total_items_card = KPICard("Total Items",     "0",     "All inventory items",  "#3498DB", "")
+        self.total_value_card = KPICard("Total Value",     "₱0.00", "Click for analytics",  "#2ECC71", "")
+        self.low_stock_card   = KPICard("Low Stock Items", "0",     "Items below minimum",  "#E74C3C", "")
 
         grid.addWidget(self.total_items_card, 0, 0)
         grid.addWidget(self.total_value_card, 0, 1)
-        grid.addWidget(self.low_stock_card,   1, 0)
-        grid.addWidget(self.categories_card,  1, 1)
+        grid.addWidget(self.low_stock_card,   1, 0, 1, 2)
 
         layout.addLayout(grid)
         layout.addStretch()
@@ -351,7 +343,6 @@ class KPIDashboard(QWidget):
         self.total_items_card.clicked.connect(self._on_total_items_clicked)
         self.total_value_card.clicked.connect(self._on_total_value_clicked)
         self.low_stock_card.clicked.connect(self._on_low_stock_clicked)
-        self.categories_card.clicked.connect(self._on_categories_clicked)
 
     def _on_total_items_clicked(self):
         if self._tabs:
@@ -366,12 +357,12 @@ class KPIDashboard(QWidget):
 
     def _on_low_stock_clicked(self):
         if self._tabs:
-            self._tabs.setCurrentIndex(1)
+            self._tabs.setCurrentIndex(0)  # Navigate to Inventory
 
     def _on_categories_clicked(self):
         if self._tabs:
             for i in range(self._tabs.count()):
-                if "statistic" in self._tabs.tabText(i).lower():
+                if "dashboard" in self._tabs.tabText(i).lower():
                     self._tabs.setCurrentIndex(i)
                     break
 
@@ -382,4 +373,3 @@ class KPIDashboard(QWidget):
         self.total_items_card.set_value(str(stats.get('total_items', 0)))
         self.total_value_card.set_value(f"₱{stats.get('total_value', 0.0):,.2f}")
         self.low_stock_card.set_value(str(stats.get('low_stock_count', 0)))
-        self.categories_card.set_value(str(len(stats.get('categories', {}))))
